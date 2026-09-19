@@ -263,6 +263,7 @@
           <button type="button" class="btn sec modcnt" data-n="2" style="flex:1; padding:6px 0">2</button>
           <button type="button" class="btn sec modcnt" data-n="3" style="flex:1; padding:6px 0">3</button>
           <button type="button" class="btn sec modcnt" data-n="4" style="flex:1; padding:6px 0">4</button>
+          <button type="button" class="btn sec modcnt" data-n="5" style="flex:1; padding:6px 0">5</button>
         </div>
       </div>
       <div id="moduleList"></div>
@@ -981,7 +982,7 @@ function resizeModuleDim(axis, rawVal){
   }
 }
 function setModuleCount(n){
-  n=clamp(Math.round(n),1,4);
+  n=clamp(Math.round(n),1,5);
   if(n>1) ensureCanvas();
   while(canvas && canvas.modules.length<n){ attachModulePreset(canvas.modules.length-1, 'side'); }
   while(canvas && canvas.modules.length>n){ removeModule(canvas.modules.length-1); }
@@ -2079,7 +2080,7 @@ function moduleRow(m,i){
 function rebuildModules(){
   const curN = canvas ? canvas.modules.length : 1;
   document.querySelectorAll('#modCountBtns .modcnt').forEach(b=>{
-    const on = (+b.dataset.n===curN) || (curN>=4 && +b.dataset.n===4);
+    const on = (+b.dataset.n===curN) || (curN>=5 && +b.dataset.n===5);
     b.style.background = on ? '#2563eb' : '';
     b.style.color = on ? '#fff' : '';
     b.style.borderColor = on ? '#2563eb' : '';
@@ -5776,5 +5777,6 @@ updateSummary();
 render();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"608601efa7da412ab33d2fe5378f7cd9","r":1}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"608601efa7da412ab33d2fe5378f7cd9","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
