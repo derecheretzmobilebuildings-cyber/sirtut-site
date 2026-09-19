@@ -753,6 +753,7 @@ let state = cleanState(6,3,1);
 let canvas = null;   /* null = \u05DE\u05D1\u05E0\u05D4 \u05D9\u05D7\u05D9\u05D3 (\u05D1\u05E8\u05D9\u05E8\u05EA \u05DE\u05D7\u05D3\u05DC); \u05D0\u05D7\u05E8\u05EA {active, modules:[{id,name,dx,dy,rot,open:{top,bottom,left,right},data}]} */
 let canvasSeq = 1;
 let curModuleOpen = null;   /* לא-null בזמן ציור מבנה שאינו הפעיל (renderCombined/exportPDF/siblingModuleGroups) — קטעים (לא boolean) של אותו מבנה, ראו computeOpenSegments */
+let curModuleLabel = null;   /* תווית יציבה ('מבנה N') המוזרקת בזמן ציור עמוד PDF בודד של מבנה בייצוא רב-מבנים; ראו exportPDF/render */
 function activeOpenFlags(){
   if(curModuleOpen) return curModuleOpen;
   if(canvas && canvas.modules[canvas.active]) return computeOpenSegments(canvas.active);
@@ -786,6 +787,17 @@ function ensureCanvas(){
   const m0 = { id:canvasSeq++, name:'\u05DE\u05D1\u05E0\u05D4 1', dx:0, dy:0, rot:0, open:{top:false,bottom:false,left:false,right:false}, data:state };
   canvas = { active:0, modules:[m0] };
   return canvas;
+}
+function nextModuleName(){
+  /* שם ברירת-מחדל שלעולם לא מתנגש ולא מדלג: attachModulePreset/attachModule חישבו בעבר
+     'מבנה '+(modules.length+1) לפי האורך הנוכחי של המערך בזמן היצירה -- לאחר מחיקת מבנה
+     מהאמצע (הכפתור מאפשר למחוק כל מבנה, לא רק את האחרון) והוספת מבנה חדש, זה
+     הפיק שני מבנים בשם זהה ("מבנה 5" כפול) תוך שהשם "מבנה 3" נעלם -- בדיוק התקלה
+     שדוד דיווח עליה במקרא ה-PDF. עכשיו בוחרים את המספר החופשי הקטן ביותר. */
+  const used=new Set((canvas?canvas.modules:[]).map(mm=>mm.name));
+  let n=1;
+  while(used.has('מבנה '+n)) n++;
+  return 'מבנה '+n;
 }
 function moduleCorners(m){
   const L=m.data.L, W=m.data.W, rad=(m.rot||0)*Math.PI/180;
@@ -886,7 +898,7 @@ function cascadeFrom(i){
 function attachModulePreset(baseIdx, rel){
   ensureCanvas();
   const base=canvas.modules[baseIdx];
-  const nm=newModule('\u05DE\u05D1\u05E0\u05D4 '+(canvas.modules.length+1), base.data.L, base.data.W, base.data.step, base.data);
+  const nm=newModule(nextModuleName(), base.data.L, base.data.W, base.data.step, base.data);
   nm.base=baseIdx;
   positionRelative(nm, base, rel);
   canvas.modules.push(nm);
@@ -991,7 +1003,7 @@ function attachModule(baseIdx, dir){
   ensureCanvas();
   const base=canvas.modules[baseIdx];
   const bb=moduleBBox(base);
-  const nm=newModule('\u05DE\u05D1\u05E0\u05D4 '+(canvas.modules.length+1), base.data.L, base.data.W, base.data.step, base.data);
+  const nm=newModule(nextModuleName(), base.data.L, base.data.W, base.data.step, base.data);
   if(dir==='right'){ nm.dx=bb.x1; nm.dy=bb.y0; }
   else if(dir==='left'){ nm.dx=bb.x0-nm.data.L; nm.dy=bb.y0; }
   else if(dir==='bottom'){ nm.dx=bb.x0; nm.dy=bb.y1; }
@@ -1085,6 +1097,22 @@ function wallTouchesNeighbor(idx, localWall){
     if(worldDir==='top') return Math.abs(mb.y0-kb.y1)<EPS && (Math.min(mb.x1,kb.x1)-Math.max(mb.x0,kb.x0))>EPS;
     return false;
   });
+}
+function neighborIdxForWall(idx, localWall){
+  /* כמו wallTouchesNeighbor, אבל מחזירה את האינדקס של השכן במקום boolean -- כדי שאפשר יהיה
+     לציין בעמוד ה-PDF הבודד של כל מבנה בדיוק לאיזה מבנה שכן קיר פתוח מתחבר. */
+  const m = canvas && canvas.modules[idx]; if(!m) return -1;
+  const worldDir = worldDirFromLocal(localWall, m.rot||0);
+  const mb = moduleBBox(m), EPS=0.03;
+  for(let ki=0; ki<canvas.modules.length; ki++){
+    if(ki===idx) continue;
+    const kb = moduleBBox(canvas.modules[ki]);
+    if(worldDir==='right' && Math.abs(mb.x1-kb.x0)<EPS && (Math.min(mb.y1,kb.y1)-Math.max(mb.y0,kb.y0))>EPS) return ki;
+    if(worldDir==='left' && Math.abs(mb.x0-kb.x1)<EPS && (Math.min(mb.y1,kb.y1)-Math.max(mb.y0,kb.y0))>EPS) return ki;
+    if(worldDir==='bottom' && Math.abs(mb.y1-kb.y0)<EPS && (Math.min(mb.x1,kb.x1)-Math.max(mb.x0,kb.x0))>EPS) return ki;
+    if(worldDir==='top' && Math.abs(mb.y0-kb.y1)<EPS && (Math.min(mb.x1,kb.x1)-Math.max(mb.x0,kb.x0))>EPS) return ki;
+  }
+  return -1;
 }
 function computeTouchFlags(idx){
   return { top:wallTouchesNeighbor(idx,'top'), bottom:wallTouchesNeighbor(idx,'bottom'),
@@ -1197,25 +1225,54 @@ function renderCombined(){
   state=savedState; curModuleOpen=savedOpen; T_OUT=state.tOut||0.05; T_IN=state.tIn||0.05;
   let xs=[], ys=[];
   canvas.modules.forEach(m=>{ const bb=moduleBBox(m); xs.push(bb.x0,bb.x1); ys.push(bb.y0,bb.y1); });
-  const x0=Math.min(...xs)-1.1, y0=Math.min(...ys)-1.1, x1=Math.max(...xs)+1.1, y1=Math.max(...ys)+1.1;
+  const x0=Math.min(...xs)-1.1, y0=Math.min(...ys)-1.1, x1=Math.max(...xs)+1.1, y1t=Math.max(...ys)+1.1;
   let body='', legend=[];
   frags.forEach(({m,fr}, idx)=>{
     const t=fr.t;
     const segs=computeOpenSegments(idx);
     const openRects=wallEraseRects('top',segs.top,t,fr.L,fr.W)+wallEraseRects('bottom',segs.bottom,t,fr.L,fr.W)+
                      wallEraseRects('left',segs.left,t,fr.L,fr.W)+wallEraseRects('right',segs.right,t,fr.L,fr.W);
-    const nameTxt = idx>0 ? `${esc(m.name)} (${REL_HE[m.rel||'side']})` : esc(m.name);
+    /* דוד ביקש תוכנית ברורה למבצע, שגם תואמת למה שהוא רואה על המסך בזמן העריכה: משתמשים
+       ב-m.name (עכשיו תמיד ייחודי בזכות nextModuleName, ראו למעלה) ולא במיקום במערך --
+       כי מספור לפי מיקום היה יכול להציג כאן "מבנה 3" לפוקוס מבנה שהכרטיס שלו על המסך
+       עדיין קורא לו "מבנה 4" (למשל אחרי מחיקת מבנה מהאמצע), מה שהיה מבלבל את דוד עצמו
+       כשהוא צריך להצליב בין המסך לתוכנית המודפסת. מוסיפים גם את מידות המבנה ישירות
+       במקרא, כדי שגם התצוגה הכללית תענה על "מה אורך/רוחב של המבנה" בלי לפתוח עמוד נפרד. */
+    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  '+fmt(fr.L)+'×'+fmt(fr.W)+' מ׳';
     legend.push(nameTxt);
     const isActive = !!canvas && canvas.active===idx;
     const activeHi = isActive ? `<rect x="${f3(-0.05)}" y="${f3(-0.05)}" width="${f3(fr.L+0.1)}" height="${f3(fr.W+0.1)}" fill="none" stroke="#2563eb" stroke-width="0.06" stroke-dasharray="0.18 0.12" pointer-events="none"/>` : '';
     body+=`<g class="combModGrp" data-mod-idx="${idx}" style="cursor:pointer" transform="translate(${f3(m.dx)} ${f3(m.dy)}) rotate(${m.rot||0})">${fr.S}${openRects}${activeHi}</g>`;
   });
-  const legendBody = legend.map((t,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y0+0.7+i*0.42)}" font-size="0.34" font-weight="700" fill="#334155" text-anchor="end">${t}</text>`).join('');
-  const vb=`${f3(x0)} ${f3(y0)} ${f3(x1-x0)} ${f3(y1-y0)}`;
+  /* מקרא + כותרת כרצועות קבועות מעל/מתחת לשרטוט עצמו (לא כטקסט צף בפינה) -- כך שהם לעולם
+     לא חופפים את קווי המבנים, ותמיד יש מספיק גובה לכל שורות המקרא (2 עד 5 מבנים). דוד דיווח
+     שבעמוד המשולב אין בכלל כותרת/מידות, ושהמקרא הישן (טקסט צף מעל הפינה הימנית-עליונה)
+     נחתך/חופף כשיש כמה שורות. */
+  const legendRowH=0.42, legendTop=0.62, legendBottom=0.3;
+  const legendH = legend.length ? legendTop+legend.length*legendRowH+legendBottom : 0;
+  const y1 = y1t + legendH;
+  const titleH=1.05;
+  const y0b = y0-titleH;
+  const titleTxt = esc(state.planName||'תרשים מבנים מחוברים');
+  const totalArea = canvas.modules.reduce((s,m)=>s+m.data.L*m.data.W, 0);
+  const subTxt = 'תצוגה כללית — '+canvas.modules.length+' מבנים מחוברים · שטח מצטבר כולל '+totalArea.toFixed(1)+' מ"ר';
+  /* חשוב: כאן, בניגוד ל-rtlText הרגילה בקובץ, משתמשים ב-text-anchor="end" בלי direction="rtl" --
+     נבדק ידנית: השילוב end+direction=rtl גורם לטקסט "לברוח" ימינה מחוץ ל-viewBox ולהיחתך
+     (באג אמיתי שנתפס בבדיקה לפני הפריסה). end לבד (כמו בקוד המקורי של renderCombined) ממקם
+     נכון גם טקסט עברי מעורב במספרים, מסתיים בדיוק ב-x1-0.3 וגדל שמאלה כמצופה. */
+  const headerBody = `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.42)}" font-size="0.5" font-weight="700" fill="#111" text-anchor="end">${titleTxt}</text>`+
+    `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.78)}" font-size="0.26" fill="#555" text-anchor="end">${esc(subTxt)}</text>`;
+  let legendBody='';
+  if(legend.length){
+    legendBody += `<rect x="${f3(x0)}" y="${f3(y1t)}" width="${f3(x1-x0)}" height="${f3(legendH)}" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.02"/>`;
+    legendBody += `<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop-0.32)}" font-size="0.3" font-weight="700" fill="#111" text-anchor="end">מקרא מבנים:</text>`;
+    legendBody += legend.map((t,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop+i*legendRowH)}" font-size="0.28" font-weight="600" fill="#334155" text-anchor="end">${esc(t)}</text>`).join('');
+  }
+  const vb=`${f3(x0)} ${f3(y0b)} ${f3(x1-x0)} ${f3(y1-y0b)}`;
   const maxW=Math.round((x1-x0)*80);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" font-family="Arial, 'Segoe UI', sans-serif" style="max-width:${maxW}px; width:100%">`+
-    `<rect x="${f3(x0)}" y="${f3(y0)}" width="${f3(x1-x0)}" height="${f3(y1-y0)}" fill="#fff"/>`+
-    body+legendBody+`</svg>`;
+    `<rect x="${f3(x0)}" y="${f3(y0b)}" width="${f3(x1-x0)}" height="${f3(y1-y0b)}" fill="#fff"/>`+
+    headerBody+body+legendBody+`</svg>`;
 }
 /* דוד ביקש (בנפרד מ-renderCombined() למעלה, שהוא במכוון "לא רלוונטי" לבקשה הזו): לראות את
    כל המבנים המחוברים "1\2\3 אחד ליד השני בלי קשר לזה אם הם מחוברים או לא", ולערוך כל אחד
@@ -3923,7 +3980,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   const rtlText=(x,y,str,fs,fill,weight)=>
     `<text x="${f3(x)}" y="${f3(y)}" font-size="${fs}" fill="${fill}"${weight?` font-weight="${weight}"`:''} text-anchor="start" direction="rtl" style="direction:rtl">${str}</text>`;
   const tk = clamp(L/12, 0.55, 1);   /* \u05D4\u05E7\u05D8\u05E0\u05EA \u05D4\u05DB\u05D5\u05EA\u05E8\u05EA \u05D1\u05DE\u05D1\u05E0\u05D9\u05DD \u05E7\u05E6\u05E8\u05D9\u05DD */
-  D += rtlText(L,-1.82,esc(state.planName||'\u05E1\u05E7\u05D9\u05E6\u05EA \u05DE\u05D1\u05E0\u05D4'),f3(0.46*tk),'#111','700');
+  D += rtlText(L,-1.82,(curModuleLabel?curModuleLabel+' — ':'')+esc(state.planName||'סקיצת מבנה'),f3(0.46*tk),'#111','700');
   const dateStr=new Date().toLocaleDateString('he-IL');
   const sub=(state.bizName? esc(state.bizName)+' \u00B7 ':'')+
     `\u05E8\u05D5\u05D7\u05D1 ${fmt(W)} \u05DE\u05F3 \u00D7 \u05D0\u05D5\u05E8\u05DA ${fmt(L)} \u05DE\u05F3 \u00B7 ${(L*W).toFixed(1)} \u05DE\u05F4\u05E8 \u00B7 \u05DE\u05E9\u05E7\u05DC \u05DE\u05E9\u05D5\u05E2\u05E8 ${weightTonsStr()} \u00B7 ${dateStr}`;
@@ -3961,6 +4018,35 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     });
     legendH=0.75+winLegend.length*0.38;
   }
+  /* דוד: "לא ברור... מה הפתח קיר שהוגדר" -- קיר שסומן כפתוח/מחובר לשכן לא צוין בשום מקום
+     בעמוד PDF הבודד של המבנה (הסימון הוויזואלי עצמו מתווסף רק למטה, בתיקון ל-ownOpenRects;
+     כאן מוסיפים גם הסבר טקסטואלי לאיזה קיר ולאיזה מבנה שכן, כדי שלמבצע לא יהיה
+     ספק. מוצג רק בייצוא (forExport), לא בעריכה על המסך -- זו בקשה שממוקדת בפלט
+     המודפס/PDF בלבד. */
+  let openLegendH=0;
+  if(forExport && canvas && canvas.modules.length>1){
+    const curIdx=canvas.modules.findIndex(mm=>mm.data===state);
+    if(curIdx>=0){
+      const wallLblR={top:'עליון', bottom:'תחתון', left:'שמאלי', right:'ימני'};
+      const openRows=[];
+      WALL_CYCLE.forEach(side=>{
+        if(openFlags[side] && openFlags[side].length){
+          const nb=neighborIdxForWall(curIdx, side);
+          openRows.push('קיר '+wallLblR[side]+' — פתח חיבור'+(nb>=0 && canvas.modules[nb]? ' אל '+esc(canvas.modules[nb].name) : ''));
+        }
+      });
+      if(openRows.length){
+        const oy0=W+1.55+legendH;
+        D += `<text x="${f3(L)}" y="${f3(oy0)}" font-size="0.27" font-weight="700" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">קירות פתוחים (חיבור בין מבנים):</text>`;
+        openRows.forEach((txt,i)=>{
+          const y=oy0+0.46+i*0.38;
+          D += `<text x="${f3(L-0.17)}" y="${f3(y)}" font-size="0.235" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">${esc(txt)}</text>`;
+        });
+        openLegendH=0.75+openRows.length*0.38;
+      }
+    }
+  }
+  legendH += openLegendH;
   const extraH=legendH;
   let R='';   /* \u05EA\u05D5\u05DB\u05DF \u05D4\u05D4\u05D3\u05DE\u05D9\u05D5\u05EA (\u05D0\u05D9\u05D6\u05D5\u05DE\u05D8\u05E8\u05D9 + \u05E4\u05E0\u05D9\u05DD) \u2014 \u05DE\u05E6\u05D8\u05D1\u05E8 \u05DB\u05D0\u05DF \u05D1\u05E0\u05E4\u05E8\u05D3 \u05DE-D \u05DB\u05E9\u05DE\u05D9\u05D9\u05E6\u05D0\u05D9\u05DD \u05DC\u05E2\u05DE\u05D5\u05D3 \u05E0\u05E4\u05E8\u05D3 */
   const rendersTop = W+1.5+extraH;
@@ -4594,28 +4680,28 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
      (ראו siblingModuleGroups) והמסגרת מתרחבת כדי להכיל את כולם יחד, כך שאין יותר סקיצה
      כפולה (מוצג משולב למעלה + מבנה בודד למטה) — הכל באותה סקיצה אחת. */
   let vbX0=-1.55, vbY0=-2.4-adTop, vbX1=mainW-1.55, vbY1=mainH-2.4-adTop, siblingsMarkup='', ownOpenRects='', activeHi='';
-  if(!forExport && canvas && canvas.modules.length>1){    const sib=siblingModuleGroups(canvas.active||0);
-    siblingsMarkup=sib.g;
-    if(sib.bbox){
-      vbX0=Math.min(vbX0, sib.bbox.x0-0.7); vbY0=Math.min(vbY0, sib.bbox.y0-0.7);
-      vbX1=Math.max(vbX1, sib.bbox.x1+0.7); vbY1=Math.max(vbY1, sib.bbox.y1+0.7);
-    }
-    /* קיר "פתוח" של המבנה הפעיל עצמו: siblingModuleGroups() כבר מציירת מלבן-מחיקה לבן על
-       קיר פתוח של מבנים שכנים (m.open), אבל S/D למטה הם ההדמיה הרגילה של המבנה הפעיל בלבד
-       ואף פעם לא כללו את אותה מחיקה על הקירות של עצמו — כך שקיר בין שני מבנים מחוברים תמיד
-       נשאר נראה סגור מהצד של המבנה שפעיל כרגע, גם כשהוא מסומן "פתוח" (בדיוק התקלה שדוד דיווח
-       עליה: "קירות חיצוניים עדיין נראים לעין כשמסמנים קיר ריק"). */
-    const ownSegs=computeOpenSegments(canvas.active||0);
+  if(canvas && canvas.modules.length>1){
+    /* קיר "פתוח" של המבנה המצוייר עצמו: openFlags (מחושב למעלה דרך activeOpenFlags) כבר
+       משקף נכון גם מבנה שאינו הפעיל, כשמציירים אותו דרך curModuleOpen (renderCombined/
+       exportPDF/siblingModuleGroups) -- לכן הבלוק הזה חייב לפעול גם ב-forExport, לא רק
+       על המסך: קודם הוא היה מותנה ב-!forExport בלבד, כך שכל עמוד PDF בודד של מבנה הציג
+       קיר סגור ורציף גם כשהוגדר במפורש כפתוח לחיבור למבנה שכן -- בלי שום סימון למבצע.
+       גם מתקנים כאן שימוש שגוי ב-computeOpenSegments(canvas.active||0) (תמיד המבנה שנבחר
+       אחרון על המסך, לא המבנה שבאמת מצוייר כרגע בלולאת הייצוא) ל-openFlags הנכון. */
+    const ownSegs=openFlags;
     ownOpenRects+=wallEraseRects('top',ownSegs.top,t,L,W)+wallEraseRects('bottom',ownSegs.bottom,t,L,W)+
                   wallEraseRects('left',ownSegs.left,t,L,W)+wallEraseRects('right',ownSegs.right,t,L,W);
-    /* דוד (2026-08-30): "אני רוצה שהם יבלטו כשאני לוחץ, באותו סגנון שכשלוחצים על מבנים
-       שמונחים זה לצד זה" — עד עכשיו למבנה הפעיל עצמו לא הייתה שום מסגרת/סימון בתוך הסקיצה
-       הראשית; ה"בחירה" ניכרה רק בעקיפין מהניגוד לשכנים האפורים-שקופים. מוסיפים כאן מסגרת
-       כחולה סביב המבנה הפעיל, באותו #2563eb ובאותו סגנון בדיוק כמו המסגרת של הכרטיס הנבחר
-       בגלריה (renderModuleGallery) ושל השורה הנבחרת ברשימת המבנים (moduleRow) — כדי
-       שהלחיצה על מבנה שכן כאן, ישירות בתוך הסקיצה, תיתן את אותה תחושת "נבחר" בדיוק. */
-    const hiPad=0.15;
-    activeHi = `<rect x="${f3(-hiPad)}" y="${f3(-hiPad)}" width="${f3(L+hiPad*2)}" height="${f3(W+hiPad*2)}" fill="none" stroke="#2563eb" stroke-width="0.05"/>`;
+    if(!forExport){
+      const sib=siblingModuleGroups(canvas.active||0);
+      siblingsMarkup=sib.g;
+      if(sib.bbox){
+        vbX0=Math.min(vbX0, sib.bbox.x0-0.7); vbY0=Math.min(vbY0, sib.bbox.y0-0.7);
+        vbX1=Math.max(vbX1, sib.bbox.x1+0.7); vbY1=Math.max(vbY1, sib.bbox.y1+0.7);
+      }
+      /* דוד (2026-08-30): מסגרת הבלטה על המבנה הפעיל, על המסך בלבד (כמו שהיה לפני). */
+      const hiPad=0.15;
+      activeHi = `<rect x="${f3(-hiPad)}" y="${f3(-hiPad)}" width="${f3(L+hiPad*2)}" height="${f3(W+hiPad*2)}" fill="none" stroke="#2563eb" stroke-width="0.05"/>`;
+    }
   }
   const vb=`${f3(vbX0)} ${f3(vbY0)} ${f3(vbX1-vbX0)} ${f3(vbY1-vbY0)}`;
   const defs=
@@ -4789,12 +4875,12 @@ async function exportPDF(){
       const savedState=state, savedOpen=curModuleOpen;
       for(let mi=0; mi<canvas.modules.length; mi++){
         const m=canvas.modules[mi];
-        state=m.data; curModuleOpen=computeOpenSegments(mi);
+        state=m.data; curModuleOpen=computeOpenSegments(mi); curModuleLabel=m.name;
         const built=render(true,false,true);
         cvs.push(await svgToCanvas(built.main));
         if(built.renders) cvs.push(await svgToCanvas(built.renders));
       }
-      state=savedState; curModuleOpen=savedOpen;
+      state=savedState; curModuleOpen=savedOpen; curModuleLabel=null;
       T_OUT=state.tOut||0.05; T_IN=state.tIn||0.05; render();
       blob=pdfFromCanvases(cvs, meta);
       flash('\u05E7\u05D5\u05D1\u05E5 PDF \u05D9\u05E8\u05D3 \u05DC\u05DE\u05D7\u05E9\u05D1 \u2014 \u05E2\u05DE\u05D5\u05D3 \u05EA\u05E6\u05D5\u05D2\u05D4 \u05DE\u05D0\u05D5\u05D7\u05D3\u05EA \u05D5\u05E2\u05DE\u05D5\u05D3\u05D9\u05DD \u05DE\u05E4\u05D5\u05E8\u05D8\u05D9\u05DD \u05DC\u05DB\u05DC \u05DE\u05D1\u05E0\u05D4');
