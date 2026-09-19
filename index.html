@@ -1218,15 +1218,27 @@ function combinedWeightKg(){
   return canvas.modules.reduce((s,m)=>s+withModuleState(m,calcWeightKg),0);
 }
 const REL_HE = {side:'ליד', face:'מול', corner:'בצורת ר'};
-function renderCombined(){
+function renderCombined(opts){
   if(!canvas || canvas.modules.length<2) return null;
   const savedState=state, savedOpen=curModuleOpen;
   const frags=canvas.modules.map((m,idx)=>{ state=m.data; curModuleOpen=computeOpenSegments(idx); return {m, fr:render(true,true)}; });
   state=savedState; curModuleOpen=savedOpen; T_OUT=state.tOut||0.05; T_IN=state.tIn||0.05;
   let xs=[], ys=[];
   canvas.modules.forEach(m=>{ const bb=moduleBBox(m); xs.push(bb.x0,bb.x1); ys.push(bb.y0,bb.y1); });
-  const x0=Math.min(...xs)-1.1, y0=Math.min(...ys)-1.1, x1=Math.max(...xs)+1.1, y1t=Math.max(...ys)+1.1;
+  const bxMin=Math.min(...xs), bxMax=Math.max(...xs), byMin=Math.min(...ys), byMax=Math.max(...ys);
+  const x0=bxMin-1.1, y0=byMin-1.1, x1=bxMax+1.1, y1t=byMax+1.1;
   let body='', legend=[];
+  /* מידות כוללות של כל המערך (אורך/רוחב המעטפת) -- "סקיצה מלאה של כל הרעיון": קו מידה עליון
+     לאורך הכולל וקו מידה שמאלי לרוחב הכולל, באותו סגנון של קווי המידה בעמודי המבנים */
+  {
+    const ln=(ax,ay,bx,by,sw,c)=>`<line x1="${f3(ax)}" y1="${f3(ay)}" x2="${f3(bx)}" y2="${f3(by)}" stroke="${c}" stroke-width="${sw}"/>`;
+    const tick=(tx,ty)=>ln(tx-0.08,ty+0.08,tx+0.08,ty-0.08,0.028,'#222');
+    const dyL=byMin-0.62, dxL=bxMin-0.62;
+    body += ln(bxMin,byMin-0.15,bxMin,dyL-0.16,0.015,'#555')+ln(bxMax,byMin-0.15,bxMax,dyL-0.16,0.015,'#555')+ln(bxMin,dyL,bxMax,dyL,0.022,'#222')+tick(bxMin,dyL)+tick(bxMax,dyL);
+    body += `<text x="${f3((bxMin+bxMax)/2)}" y="${f3(dyL-0.12)}" font-size="0.3" fill="#111" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.06">${cm(bxMax-bxMin)}</text>`;
+    body += ln(bxMin-0.15,byMin,dxL-0.16,byMin,0.015,'#555')+ln(bxMin-0.15,byMax,dxL-0.16,byMax,0.015,'#555')+ln(dxL,byMin,dxL,byMax,0.022,'#222')+tick(dxL,byMin)+tick(dxL,byMax);
+    body += `<text x="${f3(dxL-0.12)}" y="${f3((byMin+byMax)/2)}" font-size="0.3" fill="#111" text-anchor="middle" transform="rotate(-90 ${f3(dxL-0.12)} ${f3((byMin+byMax)/2)})" paint-order="stroke" stroke="#fff" stroke-width="0.06">${cm(byMax-byMin)}</text>`;
+  }
   frags.forEach(({m,fr}, idx)=>{
     const t=fr.t;
     const segs=computeOpenSegments(idx);
@@ -1238,7 +1250,7 @@ function renderCombined(){
        עדיין קורא לו "מבנה 4" (למשל אחרי מחיקת מבנה מהאמצע), מה שהיה מבלבל את דוד עצמו
        כשהוא צריך להצליב בין המסך לתוכנית המודפסת. מוסיפים גם את מידות המבנה ישירות
        במקרא, כדי שגם התצוגה הכללית תענה על "מה אורך/רוחב של המבנה" בלי לפתוח עמוד נפרד. */
-    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  '+fmt(fr.L)+'×'+fmt(fr.W)+' מ׳';
+    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר';
     legend.push(nameTxt);
     const isActive = !!canvas && canvas.active===idx;
     const activeHi = isActive ? `<rect x="${f3(-0.05)}" y="${f3(-0.05)}" width="${f3(fr.L+0.1)}" height="${f3(fr.W+0.1)}" fill="none" stroke="#2563eb" stroke-width="0.06" stroke-dasharray="0.18 0.12" pointer-events="none"/>` : '';
@@ -1247,32 +1259,251 @@ function renderCombined(){
   /* מקרא + כותרת כרצועות קבועות מעל/מתחת לשרטוט עצמו (לא כטקסט צף בפינה) -- כך שהם לעולם
      לא חופפים את קווי המבנים, ותמיד יש מספיק גובה לכל שורות המקרא (2 עד 5 מבנים). דוד דיווח
      שבעמוד המשולב אין בכלל כותרת/מידות, ושהמקרא הישן (טקסט צף מעל הפינה הימנית-עליונה)
-     נחתך/חופף כשיש כמה שורות. */
-  const legendRowH=0.42, legendTop=0.62, legendBottom=0.3;
+     נחתך/חופף כשיש כמה שורות.
+     tk2: גודל הטקסט גדל עם רוחב העמוד -- עמוד של 4-5 מבנים זה-ליד-זה רחב מאוד (30+ מ'), וכשהוא
+     מוקטן ל-A4 טקסט בגודל קבוע יוצא זעיר ולא קריא בהדפסה. */
+  const pageW=x1-x0;
+  const tk2=clamp(pageW/16, 1, 2.2);
+  const legendRowH=0.42*tk2, legendTop=0.62*tk2, legendBottom=0.3*tk2;
   const legendH = legend.length ? legendTop+legend.length*legendRowH+legendBottom : 0;
-  const y1 = y1t + legendH;
-  const titleH=1.05;
-  const y0b = y0-titleH;
   const titleTxt = esc(state.planName||'תרשים מבנים מחוברים');
   const totalArea = canvas.modules.reduce((s,m)=>s+m.data.L*m.data.W, 0);
-  const subTxt = 'תצוגה כללית — '+canvas.modules.length+' מבנים מחוברים · שטח מצטבר כולל '+totalArea.toFixed(1)+' מ"ר';
+  const subTxt = 'תצוגה כללית — '+canvas.modules.length+' מבנים מחוברים · מעטפת כוללת '+fmt(bxMax-bxMin)+' × '+fmt(byMax-byMin)+' מ׳ · שטח מצטבר כולל '+totalArea.toFixed(1)+' מ"ר · משקל משוער כולל '+(combinedWeightKg()/1000).toFixed(1)+' טון'+(state.bizName? ' · '+state.bizName:'')+' · '+new Date().toLocaleDateString('he-IL');
   /* חשוב: כאן, בניגוד ל-rtlText הרגילה בקובץ, משתמשים ב-text-anchor="end" בלי direction="rtl" --
      נבדק ידנית: השילוב end+direction=rtl גורם לטקסט "לברוח" ימינה מחוץ ל-viewBox ולהיחתך
      (באג אמיתי שנתפס בבדיקה לפני הפריסה). end לבד (כמו בקוד המקורי של renderCombined) ממקם
      נכון גם טקסט עברי מעורב במספרים, מסתיים בדיוק ב-x1-0.3 וגדל שמאלה כמצופה. */
-  const headerBody = `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.42)}" font-size="0.5" font-weight="700" fill="#111" text-anchor="end">${titleTxt}</text>`+
-    `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.78)}" font-size="0.26" fill="#555" text-anchor="end">${esc(subTxt)}</text>`;
+  /* שורת המשנה נשברת לכמה שורות (בנקודות ה-" · ") כשהעמוד צר -- למשל מבנים "מול" זה אחרי זה, שבו
+     העמוד גבוה וצר; אחרת הטקסט נחתך בקצה השמאלי (נראה בבדיקה). */
+  const subFs=0.26*tk2, subMaxW=pageW-0.6, subLines=[];
+  { let cur=''; subTxt.split(' · ').forEach(part=>{ const cand=cur? cur+' · '+part : part; if(cur && cand.length*subFs*0.5>subMaxW){ subLines.push(cur); cur=part; } else cur=cand; }); if(cur) subLines.push(cur); }
+  const titleH=(1.05+0.34*(subLines.length-1))*tk2;
+  const y0b = y0-titleH;
+  const headerBody = `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.42*tk2)}" font-size="${f3(0.5*tk2)}" font-weight="700" fill="#111" text-anchor="end">${titleTxt}</text>`+
+    subLines.map((ln2,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y0b+(0.78+0.34*i)*tk2)}" font-size="${f3(subFs)}" fill="#555" text-anchor="end">${esc(ln2)}</text>`).join('');
   let legendBody='';
   if(legend.length){
     legendBody += `<rect x="${f3(x0)}" y="${f3(y1t)}" width="${f3(x1-x0)}" height="${f3(legendH)}" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.02"/>`;
-    legendBody += `<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop-0.32)}" font-size="0.3" font-weight="700" fill="#111" text-anchor="end">מקרא מבנים:</text>`;
-    legendBody += legend.map((t,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop+i*legendRowH)}" font-size="0.28" font-weight="600" fill="#334155" text-anchor="end">${esc(t)}</text>`).join('');
+    legendBody += `<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop-0.32*tk2)}" font-size="${f3(0.3*tk2)}" font-weight="700" fill="#111" text-anchor="end">מקרא מבנים:</text>`;
+    const legFs=Math.min(0.28*tk2, (pageW-0.6)/(Math.max(...legend.map(t=>t.length))*0.5));
+    legendBody += legend.map((t,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y1t+legendTop+i*legendRowH)}" font-size="${f3(legFs)}" font-weight="600" fill="#334155" text-anchor="end">${esc(t)}</text>`).join('');
   }
+  /* דוד (2026-09-19, סבב שני): "הבחירות הכלליות בחלק הראשון" -- כל מה שלא מצויר בסקיצה
+     (פאנל, שלד, גימור, חיבורים, גלגלים, בחירת מוצרים, תוספות חופשיות) מופיע כאן פעם אחת,
+     ולא חוזר על כל עמוד מבנה. מה שזהה בכל המבנים -> "חל על כל המבנים"; מה ששונה -> לפי מבנה.
+     רק בייצוא הסקיצה (exportPDF מעביר withGeneral) -- בהסכם יש לו צ'ק-ליסט משלו. */
+  let genBody='', genH=0;
+  if(opts && opts.withGeneral){
+    const gc=combinedGeneralChoices();
+    const fsG=0.27*tk2, rowH=0.4*tk2, hdrH=0.52*tk2, maxWm=pageW-0.8;
+    const blocks=[];
+    if(gc.common.length) blocks.push({header:'מפרט כללי והזמנה (חל על כל המבנים):', rows:wrapSpecRows(groupSpecItems(gc.common.map(esc)), maxWm, fsG)});
+    if(gc.perModule.length){
+      const rowsP=[];
+      gc.perModule.forEach(pm=>{ rowsP.push(...wrapSpecRows([[esc(pm.name), pm.items.map(esc)]], maxWm, fsG)); });
+      blocks.push({header:'בחירות פרטניות לפי מבנה (שונות מהמפרט הכללי):', rows:rowsP});
+    }
+    if(blocks.length){
+      let yy=y1t+legendH+0.3*tk2;
+      let inner='';
+      blocks.forEach(b=>{
+        inner += `<text x="${f3(x1-0.3)}" y="${f3(yy+0.34*tk2)}" font-size="${f3(0.3*tk2)}" font-weight="700" fill="#111" text-anchor="start" direction="rtl" style="direction:rtl">${b.header}</text>`;
+        yy += hdrH;
+        inner += specRowsSvg(b.rows, x1-0.3, yy+0.22*tk2, rowH, f3(fsG));
+        yy += b.rows.length*rowH + 0.18*tk2;
+      });
+      genH = (yy+0.15*tk2) - (y1t+legendH);
+      genBody = `<rect x="${f3(x0)}" y="${f3(y1t+legendH)}" width="${f3(x1-x0)}" height="${f3(genH)}" fill="#fff" stroke="#e2e8f0" stroke-width="0.02"/>`+inner;
+    }
+  }
+  const y1 = y1t + legendH + genH;
   const vb=`${f3(x0)} ${f3(y0b)} ${f3(x1-x0)} ${f3(y1-y0b)}`;
   const maxW=Math.round((x1-x0)*80);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" font-family="Arial, 'Segoe UI', sans-serif" style="max-width:${maxW}px; width:100%">`+
     `<rect x="${f3(x0)}" y="${f3(y0b)}" width="${f3(x1-x0)}" height="${f3(y1-y0b)}" fill="#fff"/>`+
-    headerBody+body+legendBody+`</svg>`;
+    headerBody+body+legendBody+genBody+`</svg>`;
+}
+/* ===== הדמיה איזומטרית של כל המבנים יחד (דוד, 2026-09-19: "סקיצה מלאה של כל הרעיון") =====
+   אותה הטלה בדיוק כמו ההדמיה של מבנה בודד (dxF/dyF, חזית = הקיר התחתון, דופן = הקיר הימני),
+   רק במערכת קואורדינטות עולמית משותפת: כל מבנה כקופסה במיקום/סיבוב האמיתיים שלו (moduleCorners),
+   דלתות/חלונות/מזגנים/דוד וכו' ממופים לקירות העולמיים, וציור מהרחוק לקרוב (מיון לפי 0.42*x0+y0
+   -- כיוון המבט של ההטלה) כך שמבנה קדמי מכסה את הקירות המשותפים של המבנה שמאחוריו.
+   כמו במבנה בודד: אם רוב הפתחים בצד האחורי -- מסתובבים ומסתכלים מהצד השני (סיבוב 180°). */
+function renderCombinedIso(){
+  if(!canvas || canvas.modules.length<2) return null;
+  if(canvas.modules.every(m=>m.data.showIso===false)) return null;
+  const dxF=0.42, dyF=0.30;
+  const raw=canvas.modules.map(m=>{ const bb=moduleBBox(m); return {m, x0:bb.x0, y0:bb.y0, x1:bb.x1, y1:bb.y1, H:m.data.H||2.5}; });
+  const XminR=Math.min(...raw.map(b=>b.x0)), XmaxR=Math.max(...raw.map(b=>b.x1));
+  const YminR=Math.min(...raw.map(b=>b.y0)), YmaxR=Math.max(...raw.map(b=>b.y1));
+  const eps=0.02;
+  const rotPt=(m,x,y)=>{ const a=(m.rot||0)*Math.PI/180, c=Math.round(Math.cos(a)), sn=Math.round(Math.sin(a)); return [m.dx + x*c - y*sn, m.dy + x*sn + y*c]; };
+  /* קטע קיר מקומי (wall, off, w) -> על איזה פאה עולמית של הקופסה הוא יושב ובאיזה טווח */
+  const segOf=(b, T, wall, off, w)=>{
+    const L=b.m.data.L, W=b.m.data.W;
+    let a,c;
+    if(wall==='top'){ a=[off,0]; c=[off+w,0]; }
+    else if(wall==='bottom'){ a=[off,W]; c=[off+w,W]; }
+    else if(wall==='left'){ a=[0,off]; c=[0,off+w]; }
+    else if(wall==='right'){ a=[L,off]; c=[L,off+w]; }
+    else return null;
+    const p=T(...rotPt(b.m,a[0],a[1])), q=T(...rotPt(b.m,c[0],c[1]));
+    const bb=b.t;
+    if(Math.abs(p[1]-bb.y1)<eps && Math.abs(q[1]-bb.y1)<eps) return {face:'front', a:Math.min(p[0],q[0]), b:Math.max(p[0],q[0])};
+    if(Math.abs(p[1]-bb.y0)<eps && Math.abs(q[1]-bb.y0)<eps) return {face:'back',  a:Math.min(p[0],q[0]), b:Math.max(p[0],q[0])};
+    if(Math.abs(p[0]-bb.x1)<eps && Math.abs(q[0]-bb.x1)<eps) return {face:'right', a:Math.min(p[1],q[1]), b:Math.max(p[1],q[1])};
+    if(Math.abs(p[0]-bb.x0)<eps && Math.abs(q[0]-bb.x0)<eps) return {face:'left',  a:Math.min(p[1],q[1]), b:Math.max(p[1],q[1])};
+    return null;
+  };
+  const ident=(x,y)=>[x,y];
+  raw.forEach(b=>{ b.t={x0:b.x0,y0:b.y0,x1:b.x1,y1:b.y1}; });
+  let frontCnt=0, backCnt=0;
+  raw.forEach(b=>{
+    const d=b.m.data;
+    (d.doors||[]).forEach(o=>{ const sg=segOf(b,ident,o.wall,o.off,o.w||0.9); if(sg){ if(sg.face==='front') frontCnt+=2; else if(sg.face==='back') backCnt+=2; } });
+    (d.wins||[]).forEach(o=>{ const sg=segOf(b,ident,o.wall,o.off,o.w||1); if(sg){ if(sg.face==='front') frontCnt+=1; else if(sg.face==='back') backCnt+=1; } });
+  });
+  const flip = backCnt>frontCnt;
+  const T = flip ? (x,y)=>[XminR+XmaxR-x, YminR+YmaxR-y] : ident;
+  const boxes=raw.map(b=>{
+    const p=T(b.x0,b.y0), q=T(b.x1,b.y1);
+    b.t={x0:Math.min(p[0],q[0]), y0:Math.min(p[1],q[1]), x1:Math.max(p[0],q[0]), y1:Math.max(p[1],q[1])};
+    return b;
+  }).sort((A,B)=>(0.42*A.t.x0+A.t.y0)-(0.42*B.t.x0+B.t.y0));
+  const Xmin=XminR, Ymin=YminR, Ymax=YmaxR;
+  const Hmax=Math.max(...boxes.map(b=>b.H));
+  const totW=(XmaxR-XminR)+(Ymax-Ymin)*dxF;
+  const tk3=clamp(totW/14, 1, 2.2);
+  const yB=1.0*tk3+Hmax+(Ymax-Ymin)*dyF;
+  const P=(X,Y,z)=>[ f3(X-Xmin+(Ymax-Y)*dxF), f3(yB - z - (Ymax-Y)*dyF) ];
+  const poly=(pts,fill,stroke,sw,extra)=>`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="${fill}"${stroke?` stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"`:''}${extra||''}/>`;
+  let I='';
+  /* צללים של כל הקופסאות קודם, כדי שצל לא ייצבע על מבנה שכן */
+  boxes.forEach(b=>{
+    const t=b.t, d0=Ymax-t.y1, d1=Ymax-t.y0;
+    I += poly([[f3(t.x0-Xmin+d0*dxF+0.20),f3(yB-d0*dyF+0.13)],[f3(t.x1-Xmin+d0*dxF+0.24),f3(yB-d0*dyF+0.13)],[f3(t.x1-Xmin+d1*dxF+0.24),f3(yB-d1*dyF+0.13)],[f3(t.x0-Xmin+d1*dxF+0.20),f3(yB-d1*dyF+0.13)]],'rgba(0,0,0,0.08)');
+  });
+  boxes.forEach(b=>{
+    const t=b.t, H=b.H, d=b.m.data, dF=Ymax-t.y1;
+    const F=(X,z)=>[ f3(X-Xmin+dF*dxF), f3(yB - z - dF*dyF) ];   /* נקודה על פאת החזית של הקופסה הזו */
+    I += poly([P(t.x0,t.y1,H),P(t.x1,t.y1,H),P(t.x1,t.y0,H),P(t.x0,t.y0,H)],'url(#gRoof)','#5b6570',0.028);
+    I += poly([P(t.x1,t.y1,0),P(t.x1,t.y0,0),P(t.x1,t.y0,H),P(t.x1,t.y1,H)],'url(#gWallS)','#5b6570',0.028);
+    I += poly([P(t.x0,t.y1,0),P(t.x1,t.y1,0),P(t.x1,t.y1,H),P(t.x0,t.y1,H)],'url(#gWallF)','#5b6570',0.028);
+    for(let sx=t.x0+1.15; sx<t.x1-0.05; sx+=1.15){ const a=F(sx,H), c=F(sx,0); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#ddd6c8" stroke-width="0.014"/>`; }
+    for(let sy=t.y1-1.15; sy>t.y0+0.05; sy-=1.15){ const a=P(t.x1,sy,0), c=P(t.x1,sy,H); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#c7c0b2" stroke-width="0.014"/>`; }
+    /* חלונות */
+    (d.wins||[]).forEach(wn=>{
+      const sg=segOf(b,T,wn.wall,wn.off,wn.w||1); if(!sg) return;
+      const zw0=Math.min(wn.sill===undefined?0.95:wn.sill, H-0.5), zw1=Math.min(zw0+(wn.h||1.0), H-0.15), hh=zw1-zw0, w2=sg.b-sg.a;
+      if(sg.face==='front'){
+        const [x0,yT]=F(sg.a,zw1);
+        I += `<rect x="${f3(x0-0.045)}" y="${f3(yT-0.045)}" width="${f3(w2+0.09)}" height="${f3(hh+0.09)}" fill="#fff" stroke="#8a94a0" stroke-width="0.018"/>`;
+        I += `<rect x="${f3(x0)}" y="${f3(yT)}" width="${f3(w2)}" height="${f3(hh)}" fill="url(#gGlass)" stroke="#7d8894" stroke-width="0.014"/>`;
+        I += `<line x1="${f3(x0+w2/2)}" y1="${f3(yT)}" x2="${f3(x0+w2/2)}" y2="${f3(yT+hh)}" stroke="#fff" stroke-width="0.03"/>`;
+        I += `<polygon points="${f3(x0+0.08)},${f3(yT+hh-0.07)} ${f3(x0+w2*0.40)},${f3(yT+0.07)} ${f3(x0+w2*0.54)},${f3(yT+0.07)} ${f3(x0+0.20)},${f3(yT+hh-0.07)}" fill="rgba(255,255,255,0.4)"/>`;
+        if(wn.bars){ for(let bk=1;bk<=4;bk++){ const bx=x0+w2*bk/5; I += `<line x1="${f3(bx)}" y1="${f3(yT+0.02)}" x2="${f3(bx)}" y2="${f3(yT+hh-0.02)}" stroke="#3f4750" stroke-width="0.018"/>`; } }
+        if(wn.shutter){
+          I += `<rect x="${f3(x0-0.06)}" y="${f3(yT-0.26)}" width="${f3(w2+0.12)}" height="0.21" rx="0.04" fill="#ddd6c8" stroke="#8a8578" stroke-width="0.016"/>`;
+          I += `<line x1="${f3(x0)}" y1="${f3(yT-0.12)}" x2="${f3(x0+w2)}" y2="${f3(yT-0.12)}" stroke="#b8b1a1" stroke-width="0.014"/>`;
+        }
+      } else if(sg.face==='right'){
+        const pts=[P(t.x1,sg.b,zw0),P(t.x1,sg.a,zw0),P(t.x1,sg.a,zw1),P(t.x1,sg.b,zw1)];
+        I += poly(pts,'#fff','#fff',0.09);
+        I += poly(pts,'url(#gGlassS)','#7d8894',0.014);
+        const m0=P(t.x1,(sg.a+sg.b)/2,zw0), m1=P(t.x1,(sg.a+sg.b)/2,zw1);
+        I += `<line x1="${m0[0]}" y1="${m0[1]}" x2="${m1[0]}" y2="${m1[1]}" stroke="#fff" stroke-width="0.026"/>`;
+        if(wn.bars){ for(let bk=1;bk<=4;bk++){ const yy=sg.a+w2*bk/5, b0=P(t.x1,yy,zw0+0.02), b1=P(t.x1,yy,zw1-0.02); I += `<line x1="${b0[0]}" y1="${b0[1]}" x2="${b1[0]}" y2="${b1[1]}" stroke="#3f4750" stroke-width="0.016"/>`; } }
+      }
+    });
+    /* דלתות */
+    const zd=Math.min(2.0, H-0.2);
+    (d.doors||[]).forEach(dr=>{
+      const sg=segOf(b,T,dr.wall,dr.off,dr.w||0.9); if(!sg) return;
+      const w2=sg.b-sg.a;
+      if(sg.face==='front'){
+        const [x0,yT]=F(sg.a,zd);
+        I += `<rect x="${f3(x0-0.05)}" y="${f3(yT-0.05)}" width="${f3(w2+0.10)}" height="${f3(zd+0.05)}" fill="#fff" stroke="#8a94a0" stroke-width="0.018"/>`;
+        I += `<rect x="${f3(x0)}" y="${f3(yT)}" width="${f3(w2)}" height="${f3(zd)}" fill="url(#gDoor)" stroke="#6b7480" stroke-width="0.016"/>`;
+        I += `<rect x="${f3(x0+0.09)}" y="${f3(yT+0.12)}" width="${f3(Math.max(0.05,w2-0.18))}" height="${f3(Math.max(0.05,zd-0.55))}" fill="none" stroke="#8d97a3" stroke-width="0.014"/>`;
+        const k=F(sg.a+w2*0.84,1.02);
+        I += `<circle cx="${k[0]}" cy="${k[1]}" r="0.045" fill="#4b5563"/>`;
+      } else if(sg.face==='right'){
+        const pts=[P(t.x1,sg.b,0),P(t.x1,sg.a,0),P(t.x1,sg.a,zd),P(t.x1,sg.b,zd)];
+        I += poly(pts,'#fff','#fff',0.09);
+        I += poly(pts,'url(#gDoor)','#6b7480',0.016);
+        const k=P(t.x1,sg.a+w2*0.16,1.02);
+        I += `<circle cx="${k[0]}" cy="${k[1]}" r="0.04" fill="#4b5563"/>`;
+      }
+    });
+    /* מנועי מזגן */
+    (d.conds||[]).forEach(c=>{
+      const sg=segOf(b,T,c.wall,c.off,c.w||1); if(!sg) return;
+      const wq=(sg.b-sg.a)-0.04;
+      if(sg.face==='front'){
+        const [x0]=F(sg.a,0);
+        I += `<rect x="${f3(x0+0.02)}" y="${f3(yB-dF*dyF-0.76)}" width="${f3(wq)}" height="0.74" rx="0.04" fill="#e2e6ea" stroke="#8f979f" stroke-width="0.02"/>`;
+        I += `<circle cx="${f3(x0+0.02+wq*0.35)}" cy="${f3(yB-dF*dyF-0.39)}" r="${f3(Math.min(0.26,wq*0.3))}" fill="none" stroke="#8f979f" stroke-width="0.022"/>`;
+        I += `<circle cx="${f3(x0+0.02+wq*0.35)}" cy="${f3(yB-dF*dyF-0.39)}" r="0.05" fill="#8f979f"/>`;
+      } else if(sg.face==='right'){
+        I += poly([P(t.x1,sg.b,0.04),P(t.x1,sg.a,0.04),P(t.x1,sg.a,0.78),P(t.x1,sg.b,0.78)],'#dde1e6','#8f979f',0.02);
+        const fc=P(t.x1,(sg.a+sg.b)/2,0.41);
+        I += `<ellipse cx="${fc[0]}" cy="${fc[1]}" rx="${f3(Math.min(0.24,wq*0.28))}" ry="${f3(Math.min(0.19,wq*0.22))}" fill="none" stroke="#8f979f" stroke-width="0.02"/>`;
+      }
+    });
+    /* דוד / הכנה לדוד, חנוכייה ונקודות מים */
+    (d.waters||[]).forEach(wt=>{
+      const kd=wt.kind||'point';
+      if(kd==='boiler'||kd==='boilerPrep'){
+        const sg=segOf(b,T,wt.wall,wt.off-0.31,0.62); if(!sg) return;
+        if(sg.face==='front'){
+          const [x0,yT]=F(sg.a,2.12);
+          I += `<rect x="${f3(x0)}" y="${f3(yT)}" width="0.62" height="0.62" rx="0.07" fill="${kd==='boiler'?'#f4f6f8':'none'}" stroke="#8f979f" stroke-width="0.024"${kd==='boiler'?'':' stroke-dasharray="0.07 0.05"'}/>`;
+          I += `<line x1="${f3(x0+0.2)}" y1="${f3(yT+0.62)}" x2="${f3(x0+0.2)}" y2="${f3(yT+0.97)}" stroke="#9aa2ac" stroke-width="0.02"/><line x1="${f3(x0+0.42)}" y1="${f3(yT+0.62)}" x2="${f3(x0+0.42)}" y2="${f3(yT+0.97)}" stroke="#9aa2ac" stroke-width="0.02"/>`;
+        } else if(sg.face==='right'){
+          I += poly([P(t.x1,sg.b,1.5),P(t.x1,sg.a,1.5),P(t.x1,sg.a,2.12),P(t.x1,sg.b,2.12)], kd==='boiler'?'#f4f6f8':'none','#8f979f',0.024, kd==='boiler'?'':' stroke-dasharray="0.07 0.05"');
+        }
+      } else {
+        const sg=segOf(b,T,wt.wall,wt.off,0); if(!sg || sg.face!=='front') return;
+        const [x0,y0s]=F(sg.a,0);
+        if(kd==='manifold'){
+          I += `<line x1="${f3(x0-0.2)}" y1="${f3(y0s-0.52)}" x2="${f3(x0+0.2)}" y2="${f3(y0s-0.52)}" stroke="#1d4ed8" stroke-width="0.024"/>`;
+          [-0.14,0,0.14].forEach(dx5=>{ I += `<line x1="${f3(x0+dx5)}" y1="${f3(y0s-0.52)}" x2="${f3(x0+dx5)}" y2="${f3(y0s-0.3)}" stroke="#1d4ed8" stroke-width="0.02"/><circle cx="${f3(x0+dx5)}" cy="${f3(y0s-0.26)}" r="0.03" fill="#fff" stroke="#1d4ed8" stroke-width="0.016"/>`; });
+        } else {
+          I += `<circle cx="${f3(x0)}" cy="${f3(y0s-0.42)}" r="0.05" fill="#fff" stroke="#1d4ed8" stroke-width="0.022"/><line x1="${f3(x0)}" y1="${f3(y0s-0.37)}" x2="${f3(x0)}" y2="${f3(y0s-0.24)}" stroke="#1d4ed8" stroke-width="0.02"/>`;
+        }
+      }
+    });
+    /* תאורת חוץ וחיבור חשמל חיצוני */
+    (d.socks||[]).forEach(sk=>{
+      const kd=sk.kind||'sock'; if(kd!=='light' && kd!=='ext') return;
+      const sg=segOf(b,T,sk.wall,sk.off,0); if(!sg) return;
+      if(sg.face==='front'){
+        const [x0,y0s]=F(sg.a,0);
+        if(kd==='light'){
+          const zy=y0s-H+0.55;
+          I += `<polygon points="${f3(x0-0.17)},${f3(zy-0.08)} ${f3(x0+0.17)},${f3(zy-0.08)} ${f3(x0)},${f3(zy-0.36)}" fill="rgba(250,215,120,0.45)"/><polygon points="${f3(x0-0.17)},${f3(zy+0.1)} ${f3(x0+0.17)},${f3(zy+0.1)} ${f3(x0)},${f3(zy+0.38)}" fill="rgba(250,215,120,0.45)"/><rect x="${f3(x0-0.05)}" y="${f3(zy-0.08)}" width="0.1" height="0.18" rx="0.02" fill="#3f4750"/>`;
+        } else {
+          I += `<rect x="${f3(x0-0.08)}" y="${f3(y0s-0.64)}" width="0.16" height="0.16" rx="0.02" fill="#eceff2" stroke="#6b7480" stroke-width="0.018"/><circle cx="${f3(x0)}" cy="${f3(y0s-0.56)}" r="0.03" fill="#6b7480"/>`;
+        }
+      } else if(sg.face==='right' && kd==='light'){
+        I += poly([P(t.x1,sg.a+0.1,H-0.62),P(t.x1,sg.a,H-0.62),P(t.x1,sg.a,H-0.44),P(t.x1,sg.a+0.1,H-0.44)],'#3f4750');
+      }
+    });
+    I += poly([P(t.x0,t.y1,H),P(t.x1,t.y1,H),P(t.x1,t.y0,H),P(t.x0,t.y0,H)],'none','#4b5563',0.035);
+    /* תווית שם המבנה על הגג -- כדי שאפשר יהיה להצליב מול עמודי המבנים */
+    const c=P((t.x0+t.x1)/2,(t.y0+t.y1)/2,H);
+    I += `<text x="${c[0]}" y="${f3(+c[1]+0.09)}" font-size="0.3" font-weight="700" fill="#1f2937" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="0.07">${esc(b.m.name)}</text>`;
+  });
+  const totH=yB+0.45;
+  const vb=`${f3(-0.6)} ${f3(-0.15)} ${f3(totW+1.2)} ${f3(totH+0.15)}`;
+  const title='הדמיית המבנה המלא — כל המבנים מורכבים יחד'+(flip? ' (מבט מהצד האחורי)':'');
+  const sub='מעטפת כוללת '+fmt(XmaxR-XminR)+' × '+fmt(YmaxR-YminR)+' מ׳ · '+canvas.modules.length+' מבנים · '+esc(state.planName||'')+(state.bizName? ' · '+esc(state.bizName):'');
+  const defs=`<defs><linearGradient id="gWallF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#faf7f1"/><stop offset="1" stop-color="#ece6d9"/></linearGradient><linearGradient id="gWallS" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e6e0d4"/><stop offset="1" stop-color="#d2cbbc"/></linearGradient><linearGradient id="gRoof" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8eaee"/><stop offset="1" stop-color="#c6cad2"/></linearGradient><linearGradient id="gGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6e9f5"/><stop offset="1" stop-color="#93b9d3"/></linearGradient><linearGradient id="gGlassS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3d9e8"/><stop offset="1" stop-color="#84a9c2"/></linearGradient><linearGradient id="gDoor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3c9d1"/><stop offset="1" stop-color="#9aa2ac"/></linearGradient></defs>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" font-family="Arial, 'Segoe UI', sans-serif" style="max-width:${Math.round((totW+1.2)*80)}px; width:100%">`+defs+
+    `<rect x="${f3(-0.6)}" y="${f3(-0.15)}" width="${f3(totW+1.2)}" height="${f3(totH+0.15)}" fill="#fff"/>`+
+    `<text x="${f3(totW)}" y="${f3(0.36*tk3)}" font-size="${f3(0.36*tk3)}" font-weight="700" fill="#111" text-anchor="start" direction="rtl" style="direction:rtl">${title}</text>`+
+    `<text x="${f3(totW)}" y="${f3(0.36*tk3+0.32*tk3)}" font-size="${f3(0.22*tk3)}" fill="#555" text-anchor="start" direction="rtl" style="direction:rtl">${sub}</text>`+
+    I+`</svg>`;
 }
 /* דוד ביקש (בנפרד מ-renderCombined() למעלה, שהוא במכוון "לא רלוונטי" לבקשה הזו): לראות את
    כל המבנים המחוברים "1\2\3 אחד ליד השני בלי קשר לזה אם הם מחוברים או לא", ולערוך כל אחד
@@ -1790,11 +2021,15 @@ function combinedProductPickDetails(){
   if(mergedRest.items.length) result.push(mergedRest);
   return result;
 }
-function orderItems(includeProducts){
+const WALL_HE_EXPORT={top:'קיר עליון', bottom:'קיר תחתון', left:'קיר שמאלי', right:'קיר ימני', part:'מחיצה פנימית'};
+function orderItems(includeProducts, opts){   /* opts: {drawnOnly, generalOnly, pointed} -- ראו הסבר ליד combinedGeneralChoices() */
   const out=[], b=state.bath, k=state.kitchen;
-  out.push('\u05E4\u05D0\u05E0\u05DC '+(state.panelType==='rockwool'?'\u05E6\u05DE\u05E8 \u05E1\u05DC\u05E2\u05D9\u05DD':'\u05E7\u05DC-\u05E7\u05E8')+' '+(state.panelThick||5)+' \u05E1\u05F4\u05DE \u05E2\u05D5\u05D1\u05D9');
-  out.push('\u05E9\u05D9\u05DC\u05D3\u05EA \u05E4\u05DC\u05D3\u05D4 \u05DE\u05E8\u05D5\u05EA\u05DB\u05EA \u05DC\u05E4\u05D9 \u05EA\u05E7\u05DF \u05EA\u05F4\u05D9 1225 (\u05D7\u05D5\u05E7\u05EA \u05D4\u05E4\u05DC\u05D3\u05D4)');
+  if(!(opts&&opts.drawnOnly)){
+    out.push('\u05E4\u05D0\u05E0\u05DC '+(state.panelType==='rockwool'?'\u05E6\u05DE\u05E8 \u05E1\u05DC\u05E2\u05D9\u05DD':'\u05E7\u05DC-\u05E7\u05E8')+' '+(state.panelThick||5)+' \u05E1\u05F4\u05DE \u05E2\u05D5\u05D1\u05D9');
+    out.push('\u05E9\u05D9\u05DC\u05D3\u05EA \u05E4\u05DC\u05D3\u05D4 \u05DE\u05E8\u05D5\u05EA\u05DB\u05EA \u05DC\u05E4\u05D9 \u05EA\u05E7\u05DF \u05EA\u05F4\u05D9 1225 (\u05D7\u05D5\u05E7\u05EA \u05D4\u05E4\u05DC\u05D3\u05D4)');
+  }
   /* \u05E4\u05D9\u05E8\u05D5\u05D8 \u05D4\u05E4\u05E8\u05D5\u05E4\u05D9\u05DC\u05D9\u05DD \u05D4\u05DE\u05DC\u05D0 \u05DC\u05E4\u05D9 \u05E2\u05D5\u05D1\u05D9 \u05E4\u05D0\u05E0\u05DC (FRAME_SPEC) \u05DB\u05D1\u05E8 \u05D0\u05D9\u05E0\u05D5 \u05DB\u05D0\u05DF \u2014 \u05DE\u05D5\u05E6\u05D2 \u05DB\u05D1\u05DC\u05D5\u05E7 \u05E0\u05E4\u05E8\u05D3 \u05D1\u05E1\u05E4\u05D7 \u05D4\u05D4\u05E1\u05DB\u05DD (\u05E8\u05D0\u05D4 agreeFormSvg) \u05D5\u05DC\u05D0 \u05D1\u05DE\u05E4\u05E8\u05D8 \u05D4\u05E9\u05D5\u05D8\u05E3 \u05D4\u05D6\u05D4 \u2014 \u05DC\u05D1\u05E7\u05E9\u05EA \u05D3\u05D5\u05D3 */
+  if(!(opts&&opts.generalOnly)){   /* פריטים מצוירים -- מדולגים כשמבקשים רק בחירות כלליות */
   if(b.show){
     out.push('\u05D9\u05D7\u05D9\u05D3\u05EA \u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD '+(b.w||1.2)+'\u00D7'+(b.d||1.2)+' \u05DE\u05F3');
     out.push('\u05D0\u05E1\u05DC\u05D4');
@@ -1813,7 +2048,8 @@ function orderItems(includeProducts){
   (state.doors||[]).forEach(d=>{
     const isOpenDr=d.type==='open';
     const matLabel=d.material==='vitrine'?'ויטרינה':'דלת פלדלת';
-    const key=isOpenDr ? ('ללא דלת, '+cm(d.w||0.9)+' ס״מ') : ((d.type==='double'?'כפולה ':'')+cm(d.w||0.9)+' ס״מ, '+matLabel);
+    let key=isOpenDr ? ('ללא דלת, '+cm(d.w||0.9)+' ס״מ') : ((d.type==='double'?'כפולה ':'')+cm(d.w||0.9)+' ס״מ, '+matLabel);
+    if(opts&&opts.pointed) key+=' — '+(WALL_HE_EXPORT[d.wall]||'');
     const ex=dG.find(g=>g.k===key); if(ex) ex.n++; else dG.push({k:key, n:1, open:isOpenDr});
   });
   dG.forEach(g=>out.push((g.open ? (g.n>1? g.n+' פתחי כניסה ':'פתח כניסה ') : (g.n>1? g.n+' דלתות כניסה ':'דלת כניסה '))+g.k));
@@ -1821,9 +2057,11 @@ function orderItems(includeProducts){
     const acG=[];
     state.acs.filter(a=>!a.prepOnly).forEach(a=>{
       const cw=AC_POWERS.reduce((p,c)=>Math.abs(c.w-a.w)<Math.abs(p.w-a.w)?c:p);
-      const ex=acG.find(g=>g.k===cw.label); if(ex) ex.n++; else acG.push({k:cw.label, s:cw.short, n:1});
+      const suf=(opts&&opts.pointed)? ' — '+(WALL_HE_EXPORT[a.wall]||'') : '';
+      const kk=cw.label+suf;
+      const ex=acG.find(g=>g.k===kk); if(ex) ex.n++; else acG.push({k:kk, s:cw.short+suf, n:1});
     });
-    acG.forEach(g=>out.push(g.n>1? g.n+' \u05DE\u05D6\u05D2\u05E0\u05D9\u05DD '+g.s : g.k));
+    acG.forEach(g=>out.push(g.n>1? g.n+' מזגנים '+g.s : g.k));
   }
   if((state.conds||[]).length) out.push(state.conds.length>1? state.conds.length+' \u05DE\u05E0\u05D5\u05E2\u05D9\u05DD \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9\u05D9\u05DD':'\u05DE\u05E0\u05D5\u05E2 \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9');
   const acPrepCount=(state.acs||[]).filter(a=>a.prepOnly).length;
@@ -1866,8 +2104,11 @@ function orderItems(includeProducts){
     out.push(nPr>1? nPr+' \u05D7\u05D3\u05E8\u05D9\u05DD \u05E4\u05E0\u05D9\u05DE\u05D9\u05D9\u05DD (\u05DE\u05D7\u05D9\u05E6\u05D5\u05EA)':'\u05D7\u05D3\u05E8 \u05E4\u05E0\u05D9\u05DE\u05D9 (\u05DE\u05D7\u05D9\u05E6\u05D4)');
     out.push(nPr>1? nPr+' \u05D3\u05DC\u05EA\u05D5\u05EA \u05E4\u05E0\u05D9\u05DD \u05D7\u05DC\u05E7\u05D5\u05EA (\u05E1\u05D8\u05E0\u05D3\u05E8\u05D8)':'\u05D3\u05DC\u05EA \u05E4\u05E0\u05D9\u05DD \u05D7\u05DC\u05E7\u05D4 (\u05E1\u05D8\u05E0\u05D3\u05E8\u05D8)');
   }
-  if(state.addons && state.addons.wheels) out.push('\u05D2\u05DC\u05D2\u05DC\u05D9\u05DD \u05DC\u05DE\u05D1\u05E0\u05D4');
-  if(state.towHook) out.push('\u05D5\u05D5 \u05D2\u05E8\u05D9\u05E8\u05D4 (10 \u05E1\u05F4\u05DE)');
+  }
+  if(!(opts&&opts.drawnOnly)){
+    if(state.addons && state.addons.wheels) out.push('\u05D2\u05DC\u05D2\u05DC\u05D9\u05DD \u05DC\u05DE\u05D1\u05E0\u05D4');
+    if(state.towHook) out.push('\u05D5\u05D5 \u05D2\u05E8\u05D9\u05E8\u05D4 (10 \u05E1\u05F4\u05DE)');
+  }
   if(includeProducts!==false) out.push(...productPickItems());
   return out;
 }
@@ -1886,6 +2127,83 @@ function combinedOrderItems(includeProducts){
       out.push(m.name+': '+it);
     });
   });
+  return out;
+}
+
+/* ===== ייצוא PDF רב-מבנים (דוד, 2026-09-19): הפרדה בין "בחירות כלליות" (לא מצוירות -- פאנל, שלד,
+   גימור, חיבורים, גלגלים, בחירת מוצרים, תוספות חופשיות) שמופיעות פעם אחת בעמוד הראשון, לבין
+   "מה שמופיע בסקיצה" של כל מבנה (דלתות, חלונות, מחיצות, חשמל, מיזוג, אינסטלציה, הערות) שמופיע
+   מתחת לשרטוט של אותו מבנה בלבד. orderItems()/combinedOrderItems() עצמן לא שונו בהתנהגות
+   ברירת-המחדל (ההסכם והמסך ממשיכים לקבל בדיוק את מה שקיבלו). ===== */
+const SPEC_CATS=[
+  {label:'מבנה, שלד וגימור', test:/פאנל|1225|שילד|גבס|פרקט|קרמיקה|שליכט/},
+  {label:'אינסטלציה, מטבח ואמבטיה', test:/מים|דוד|ביוב|שירותים|אסלה|כיור|מקלחון|אמבטיה|מטבח|קיסר|דוש|ברז|חיפוי/},
+  {label:'חלונות, דלתות ומחיצות', test:/חלו|דלת|מחיצ/},
+  {label:'חשמל, מיזוג ותקשורת', test:/שקע|מזג|מנוע|הכנ|חשמל|תאור|טלוויזיה/}
+];
+const MISC_LABEL='נוספים';
+function groupSpecItems(items){
+  const buckets=new Map();
+  items.forEach(it=>{
+    const hit=SPEC_CATS.find(c=>c.test.test(it));
+    const lab=hit?hit.label:MISC_LABEL;
+    if(!buckets.has(lab)) buckets.set(lab,[]);
+    buckets.get(lab).push(it);
+  });
+  const ordered=[];
+  SPEC_CATS.forEach(c=>{ if(buckets.has(c.label)) ordered.push([c.label, buckets.get(c.label)]); });
+  if(buckets.has(MISC_LABEL)) ordered.push([MISC_LABEL, buckets.get(MISC_LABEL)]);
+  return ordered;
+}
+/* שבירת קבוצות [תווית, פריטים] לשורות ברוחב נתון (מטרים) -- אותה היוריסטיקה שהייתה בתוך render() */
+function wrapSpecRows(groups, maxW, fs){
+  const rows=[];
+  const est=s2=>fs*0.5*String(s2).length+0.62;
+  groups.forEach(([label,its])=>{
+    let cur=[], curW=est(label)+1.4, first=true;
+    const flush=()=>{ if(cur.length){ rows.push({label:first?label:null, items:cur}); first=false; cur=[]; curW=0; } };
+    its.forEach(it=>{
+      const w2=est(it);
+      if(cur.length && curW+w2>maxW) flush();
+      cur.push(it); curW+=w2;
+    });
+    flush();
+  });
+  return rows;
+}
+/* ציור שורות מפרט (הפריטים כבר עברו esc) -- מיושר לימין מ-x, יורד למטה */
+function specRowsSvg(rows, x, yFirst, rowH, fs){
+  let s='';
+  rows.forEach((sl,i)=>{
+    let inner = sl.label? `<tspan font-weight="700" fill="#334155">${sl.label}:  </tspan>`:'';
+    sl.items.forEach((it,j)=>{
+      inner += `<tspan fill="#15803d">✓ </tspan><tspan fill="#333">${it}</tspan>`;
+      if(j<sl.items.length-1) inner += `<tspan fill="#9ca3af">  ·  </tspan>`;
+    });
+    s += `<text x="${f3(x)}" y="${f3(yFirst+i*rowH)}" font-size="${fs}" text-anchor="start" direction="rtl" style="direction:rtl">${inner}</text>`;
+  });
+  return s;
+}
+/* הבחירות הכלליות של המבנה הנוכחי (state) -- כל מה שלא מצויר בסקיצה */
+function generalChoiceItems(){
+  const freeAd=(state.addonsFreeList||[]).map(s2=>String(s2).trim()).filter(Boolean);
+  return [...orderItems(false,{generalOnly:true}), ...finishItems(), ...productPickItems(), ...freeAd];
+}
+/* איחוד הבחירות הכלליות מכל המבנים: מה שזהה בכולם -> פעם אחת ("חל על כל המבנים"),
+   מה ששונה -> לפי מבנה */
+function combinedGeneralChoices(){
+  if(!canvas || canvas.modules.length<2) return {common:generalChoiceItems(), perModule:[]};
+  const per=canvas.modules.map(m=>withModuleState(m, generalChoiceItems));
+  const common=per[0].filter(it=>per.every(list=>list.includes(it)));
+  const perModule=canvas.modules.map((m,i)=>({name:m.name, items:per[i].filter(it=>!common.includes(it))})).filter(x=>x.items.length);
+  return {common, perModule};
+}
+/* מה שמצויר בסקיצה של המבנה הנוכחי בלבד -- עם ציון הקיר לדלתות/מזגנים, חדרים מסומנים והערות */
+function moduleDrawnItems(){
+  const out=orderItems(false,{drawnOnly:true, pointed:true});
+  const rooms=(state.rooms||[]).map(r=>String(r.name||'').trim()).filter(Boolean);
+  if(rooms.length) out.push('חדרים מסומנים בסקיצה: '+rooms.join(', '));
+  (state.notes||[]).map(n=>String(n.text||'').trim()).filter(Boolean).forEach(n=>out.push('הערה בסקיצה: '+n));
   return out;
 }
 
@@ -3936,26 +4254,12 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
 
   /* \u05EA\u05D5\u05E1\u05E4\u05D5\u05EA \u05DC\u05D4\u05D6\u05DE\u05E0\u05D4 \u2014 \u05DE\u05E4\u05E8\u05D8 \u05DE\u05E1\u05D5\u05D3\u05E8 \u05DC\u05E4\u05D9 \u05E0\u05D5\u05E9\u05D0\u05D9\u05DD, \u05DC\u05D0 \u05D3\u05D5\u05D7\u05E7\u05EA \u05D0\u05EA \u05D4\u05E1\u05E7\u05D9\u05E6\u05D4 */
   const freeAd=(state.addonsFreeList||[]).map(s2=>String(s2).trim()).filter(Boolean);
-  const SPEC_CATS=[
-    {label:'\u05DE\u05D1\u05E0\u05D4, \u05E9\u05DC\u05D3 \u05D5\u05D2\u05D9\u05DE\u05D5\u05E8', test:/\u05E4\u05D0\u05E0\u05DC|1225|\u05E9\u05D9\u05DC\u05D3|\u05D2\u05D1\u05E1|\u05E4\u05E8\u05E7\u05D8|\u05E7\u05E8\u05DE\u05D9\u05E7\u05D4|\u05E9\u05DC\u05D9\u05DB\u05D8/},
-    {label:'\u05D0\u05D9\u05E0\u05E1\u05D8\u05DC\u05E6\u05D9\u05D4, \u05DE\u05D8\u05D1\u05D7 \u05D5\u05D0\u05DE\u05D1\u05D8\u05D9\u05D4', test:/\u05DE\u05D9\u05DD|\u05D3\u05D5\u05D3|\u05D1\u05D9\u05D5\u05D1|\u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD|\u05D0\u05E1\u05DC\u05D4|\u05DB\u05D9\u05D5\u05E8|\u05DE\u05E7\u05DC\u05D7\u05D5\u05DF|\u05D0\u05DE\u05D1\u05D8\u05D9\u05D4|\u05DE\u05D8\u05D1\u05D7|\u05E7\u05D9\u05E1\u05E8|\u05D3\u05D5\u05E9|\u05D1\u05E8\u05D6|\u05D7\u05D9\u05E4\u05D5\u05D9/},
-    {label:'\u05D7\u05DC\u05D5\u05E0\u05D5\u05EA, \u05D3\u05DC\u05EA\u05D5\u05EA \u05D5\u05DE\u05D7\u05D9\u05E6\u05D5\u05EA', test:/\u05D7\u05DC\u05D5|\u05D3\u05DC\u05EA|\u05DE\u05D7\u05D9\u05E6/},
-    {label:'\u05D7\u05E9\u05DE\u05DC, \u05DE\u05D9\u05D6\u05D5\u05D2 \u05D5\u05EA\u05E7\u05E9\u05D5\u05E8\u05EA', test:/\u05E9\u05E7\u05E2|\u05DE\u05D6\u05D2|\u05DE\u05E0\u05D5\u05E2|\u05D4\u05DB\u05E0|\u05D7\u05E9\u05DE\u05DC|\u05EA\u05D0\u05D5\u05E8|\u05D8\u05DC\u05D5\u05D5\u05D9\u05D6\u05D9\u05D4/}
-  ];
-  const MISC_LABEL='\u05E0\u05D5\u05E1\u05E4\u05D9\u05DD';
-  const groupSpecItems=items=>{
-    const buckets=new Map();
-    items.forEach(it=>{
-      const hit=SPEC_CATS.find(c=>c.test.test(it));
-      const lab=hit?hit.label:MISC_LABEL;
-      if(!buckets.has(lab)) buckets.set(lab,[]);
-      buckets.get(lab).push(it);
-    });
-    const ordered=[];
-    SPEC_CATS.forEach(c=>{ if(buckets.has(c.label)) ordered.push([c.label, buckets.get(c.label)]); });
-    if(buckets.has(MISC_LABEL)) ordered.push([MISC_LABEL, buckets.get(MISC_LABEL)]);
-    return ordered;
-  };
+  /* ייצוא רב-מבנים (עמוד לכל מבנה): הבלוק הכללי למעלה מבוטל -- הוא עובר לעמוד הראשון (ראו
+     renderCombined withGeneral) -- ובמקומו כותרת ממוקדת-מבנה למעלה ופירוט המבנה למטה. */
+  const multiExp = !!forExport && !fragmentOnly && !!canvas && canvas.modules.length>1;
+  const hdrExtra = multiExp ? 0.38 : 0;
+  /* עמוד ההדמיות של כל מבנה מקבל גם הוא את שם המבנה בכותרת -- אחרת עמוד הדמיה בודד בתוך PDF של כמה מבנים לא מזוהה */
+  const modTitleSuffix = (multiExp && curModuleLabel) ? ' \u2014 '+esc(curModuleLabel) : '';
   const specGroups=groupSpecItems([...finishItems(), ...combinedOrderItems(), ...freeAd.map(esc)]);
   const adFs=0.22;
   /* \u05E9\u05D5\u05E8\u05D5\u05EA \u05D4\u05EA\u05D5\u05E1\u05E4\u05D5\u05EA \u2014 \u05DE\u05E1\u05D5\u05D3\u05E8\u05D5\u05EA \u05DC\u05E4\u05D9 \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4, \u05DB\u05DC \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4 \u05E2\u05DD \u05DB\u05D5\u05EA\u05E8\u05EA \u05DE\u05E9\u05E0\u05D4 */
@@ -3974,20 +4278,31 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       flush();
     });
   }
-  const adTop = (forExport && specLines.length)? 0.42+0.3*specLines.length : 0;
+  const adTop = (forExport && !multiExp && specLines.length)? 0.42+0.3*specLines.length : 0;
 
   /* \u05DB\u05D5\u05EA\u05E8\u05EA (\u05D8\u05E7\u05E1\u05D8 \u05E2\u05D1\u05E8\u05D9 \u05DE\u05D9\u05D5\u05E9\u05E8 \u05DC\u05D9\u05DE\u05D9\u05DF) */
   const rtlText=(x,y,str,fs,fill,weight)=>
     `<text x="${f3(x)}" y="${f3(y)}" font-size="${fs}" fill="${fill}"${weight?` font-weight="${weight}"`:''} text-anchor="start" direction="rtl" style="direction:rtl">${str}</text>`;
   const tk = clamp(L/12, 0.55, 1);   /* \u05D4\u05E7\u05D8\u05E0\u05EA \u05D4\u05DB\u05D5\u05EA\u05E8\u05EA \u05D1\u05DE\u05D1\u05E0\u05D9\u05DD \u05E7\u05E6\u05E8\u05D9\u05DD */
-  D += rtlText(L,-1.82,(curModuleLabel?curModuleLabel+' — ':'')+esc(state.planName||'סקיצת מבנה'),f3(0.46*tk),'#111','700');
+  const modIdxT = (canvas && canvas.modules) ? canvas.modules.findIndex(mm=>mm.data===state) : -1;
   const dateStr=new Date().toLocaleDateString('he-IL');
-  const sub=(state.bizName? esc(state.bizName)+' \u00B7 ':'')+
+  if(multiExp && curModuleLabel){
+    /* דוד: "בכל דף יש את הכותרת הכללית" -- בעמוד של מבנה בודד הכותרת היא המבנה עצמו (שם +
+       "מתוך N"), המידות שלו בשורה משלהן, ושם התוכנית הכללית יורד לשורת הקשר קטנה בלבד. */
+    const nmT=esc(curModuleLabel), nMods=canvas.modules.length;
+    const ttl = /^מבנה \d+$/.test(curModuleLabel) ? nmT+' מתוך '+nMods : nmT+' (מבנה '+(modIdxT+1)+' מתוך '+nMods+')';
+    D += rtlText(L,-1.82-hdrExtra,ttl,f3(0.46*tk),'#111','700');
+    D += rtlText(L,-1.44-hdrExtra,`רוחב ${fmt(W)} מ׳ × אורך ${fmt(L)} מ׳ · ${(L*W).toFixed(1)} מ״ר · משקל משוער ${weightTonsStr()}`,f3(0.3*tk),'#333','600');
+    D += rtlText(L,-1.44,'תוכנית: '+esc(state.planName||'סקיצת מבנה')+(state.bizName? ' · '+esc(state.bizName):'')+' · '+dateStr,f3(0.23*tk),'#777');
+  } else {
+    D += rtlText(L,-1.82,(curModuleLabel?curModuleLabel+' — ':'')+esc(state.planName||'סקיצת מבנה'),f3(0.46*tk),'#111','700');
+    const sub=(state.bizName? esc(state.bizName)+' · ':'')+
     `\u05E8\u05D5\u05D7\u05D1 ${fmt(W)} \u05DE\u05F3 \u00D7 \u05D0\u05D5\u05E8\u05DA ${fmt(L)} \u05DE\u05F3 \u00B7 ${(L*W).toFixed(1)} \u05DE\u05F4\u05E8 \u00B7 \u05DE\u05E9\u05E7\u05DC \u05DE\u05E9\u05D5\u05E2\u05E8 ${weightTonsStr()} \u00B7 ${dateStr}`;
-  D += rtlText(L,-1.44,sub,f3(0.25*tk),'#555');
+    D += rtlText(L,-1.44,sub,f3(0.25*tk),'#555');
+  }
   /* \u05E4\u05E8\u05D8\u05D9 \u05D4\u05DC\u05E7\u05D5\u05D7 \u05DC\u05D0 \u05DE\u05D5\u05D3\u05E4\u05E1\u05D9\u05DD \u05E2\u05DC \u05D4\u05E1\u05E7\u05D9\u05E6\u05D4 \u2014 \u05D4\u05DD \u05E0\u05DB\u05E0\u05E1\u05D9\u05DD \u05E8\u05E7 \u05DC\u05E1\u05E4\u05D7 \u05D4\u05D4\u05E1\u05DB\u05DD */
   /* \u05E9\u05D5\u05E8\u05D5\u05EA \u05D4\u05EA\u05D5\u05E1\u05E4\u05D5\u05EA \u2014 \u05DE\u05E1\u05D5\u05D3\u05E8\u05D5\u05EA \u05DC\u05E4\u05D9 \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4, \u05DB\u05DC \u05E7\u05D8\u05D2\u05D5\u05E8\u05D9\u05D4 \u05E2\u05DD \u05DB\u05D5\u05EA\u05E8\u05EA \u05DE\u05E9\u05E0\u05D4 \u05DE\u05E9\u05DC\u05D4 \u2014 \u05E8\u05E7 \u05D1\u05D9\u05D9\u05E6\u05D5\u05D0 (PDF/\u05D4\u05E6\u05E2\u05D4), \u05DC\u05D0 \u05D1\u05DE\u05E1\u05DA \u05D4\u05D1\u05D7\u05D9\u05E8\u05D4 \u05D4\u05D0\u05D9\u05E0\u05D8\u05E8\u05D0\u05E7\u05D8\u05D9\u05D1\u05D9 */
-  if(forExport && specLines.length){
+  if(forExport && !multiExp && specLines.length){
     const allSpecLines=[{header:true}, ...specLines];
     allSpecLines.forEach((sl,i)=>{
       const yy=-2.24-0.3*(allSpecLines.length-1-i);
@@ -4047,6 +4362,23 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     }
   }
   legendH += openLegendH;
+  /* דוד (2026-09-19, סבב שני): "כל מבנה שאני מייצר בסקיצה צריך נקודתית הסבר למה שרואים
+     מעליו, וגם את הבחירות הכלליות בחלק הראשון" -- כלומר: הבלוק הכללי "מפרט מבנה והזמנה"
+     (שכלל את הדלתות/חלונות של *כל* המבנים, על *כל* עמוד) עובר לעמוד הראשון (renderCombined),
+     ומתחת לכל שרטוט מבנה בודד מופיע פירוט של אותו מבנה בלבד -- רק מה שבאמת מצויר בו
+     (דלתות עם ציון הקיר, חלונות, מחיצות/חדרים, חשמל, מיזוג, אינסטלציה, הערות). */
+  let detailsH=0;
+  if(multiExp){
+    const dItems=moduleDrawnItems().map(esc);
+    const dRows=dItems.length ? wrapSpecRows(groupSpecItems(dItems), L+2.3, 0.235) : [];
+    const dy0=W+1.55+legendH;
+    const dnm=esc(curModuleLabel||'');
+    D += `<text x="${f3(L)}" y="${f3(dy0)}" font-size="0.27" font-weight="700" fill="#111" text-anchor="start" direction="rtl" style="direction:rtl">פירוט ${dnm} — מה שמופיע בסקיצה למעלה:</text>`;
+    if(dRows.length) D += specRowsSvg(dRows, L, dy0+0.46, 0.36, 0.235);
+    else D += `<text x="${f3(L)}" y="${f3(dy0+0.46)}" font-size="0.235" fill="#666" text-anchor="start" direction="rtl" style="direction:rtl">מבנה בסיסי לפי המידות שלמעלה — ללא פריטים נוספים מסומנים בסקיצה</text>`;
+    detailsH=0.75+Math.max(dRows.length,1)*0.36;
+  }
+  legendH += detailsH;
   const extraH=legendH;
   let R='';   /* \u05EA\u05D5\u05DB\u05DF \u05D4\u05D4\u05D3\u05DE\u05D9\u05D5\u05EA (\u05D0\u05D9\u05D6\u05D5\u05DE\u05D8\u05E8\u05D9 + \u05E4\u05E0\u05D9\u05DD) \u2014 \u05DE\u05E6\u05D8\u05D1\u05E8 \u05DB\u05D0\u05DF \u05D1\u05E0\u05E4\u05E8\u05D3 \u05DE-D \u05DB\u05E9\u05DE\u05D9\u05D9\u05E6\u05D0\u05D9\u05DD \u05DC\u05E2\u05DE\u05D5\u05D3 \u05E0\u05E4\u05E8\u05D3 */
   const rendersTop = W+1.5+extraH;
@@ -4216,7 +4548,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     }
     /* \u05E7\u05D5 \u05DE\u05EA\u05D0\u05E8 \u05DE\u05D5\u05D3\u05D2\u05E9 \u05DC\u05D2\u05D2 */
     I += poly([P(0,W,H2),P(L,W,H2),P(L,0,H2),P(0,0,H2)],'none','#4b5563',0.035);
-    const isoBlock = rtlText(L, isoTop+0.18, '\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4', 0.3, '#555','600') + I;
+    const isoBlock = rtlText(L, isoTop+0.18, '\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4'+modTitleSuffix, 0.3, '#555','600') + I;
     if(splitRenders) R += isoBlock; else D += isoBlock;
   }
 
@@ -4651,7 +4983,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     (state.rooms||[]).forEach(rm=>{
       G += `<text x="${f3(rm.x)}" y="${f3(rm.y)}" font-size="0.24" font-weight="600" fill="#9a8f79" text-anchor="middle" direction="rtl" style="direction:rtl">${esc(rm.name||'')}</text>`;
     });
-    const intBlock = rtlText(L, intTop+0.18, '\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05E4\u05E0\u05D9\u05DD \u2014 \u05DE\u05D1\u05D8 \u05DE\u05DC\u05DE\u05E2\u05DC\u05D4', 0.3, '#555','600') + `<g transform="translate(0 ${f3(yOff)})">${G}</g>`;
+    const intBlock = rtlText(L, intTop+0.18, '\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05E4\u05E0\u05D9\u05DD \u2014 \u05DE\u05D1\u05D8 \u05DE\u05DC\u05DE\u05E2\u05DC\u05D4'+modTitleSuffix, 0.3, '#555','600') + `<g transform="translate(0 ${f3(yOff)})">${G}</g>`;
     if(splitRenders) R += intBlock; else D += intBlock;
   }
 
@@ -4674,12 +5006,12 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   /* \u05E9\u05D5\u05DC\u05D9\u05D9\u05DD \u05E0\u05D5\u05E1\u05E4\u05D9\u05DD \u05DE\u05D9\u05DE\u05D9\u05DF \u05DB\u05E9\u05D9\u05E9 \u05EA\u05D5\u05D5\u05D9\u05D5\u05EA \u05D7\u05E9\u05DE\u05DC/\u05DE\u05D9\u05DD \u05E2\u05DC \u05D4\u05E7\u05D9\u05E8 \u05D4\u05D9\u05DE\u05E0\u05D9 */
   const extraR = ([...(state.waters||[]), ...(state.socks||[])].some(o=>o.wall==='right' && o.kind && o.kind!=='sock')) ? 0.8 : 0;
   const mainW = L+2.0+extraR+(splitRenders? 0 : isoExtraW);
-  const mainH = W+3.75+adTop+extraH+(splitRenders? 0 : isoExtraH+intExtraH);
+  const mainH = W+3.75+adTop+hdrExtra+extraH+(splitRenders? 0 : isoExtraH+intExtraH);
   /* מבנים מחוברים בסקיצה הראשית על המסך (לא ביצוא): המבנה הפעיל עצמו (S+D, כל נקודות
      הגרירה) נשאר בדיוק כפי שהוא — רק מתווספים סביבו קווי המתאר של המבנים השכנים
      (ראו siblingModuleGroups) והמסגרת מתרחבת כדי להכיל את כולם יחד, כך שאין יותר סקיצה
      כפולה (מוצג משולב למעלה + מבנה בודד למטה) — הכל באותה סקיצה אחת. */
-  let vbX0=-1.55, vbY0=-2.4-adTop, vbX1=mainW-1.55, vbY1=mainH-2.4-adTop, siblingsMarkup='', ownOpenRects='', activeHi='';
+  let vbX0=-1.55, vbY0=-2.4-adTop-hdrExtra, vbX1=mainW-1.55, vbY1=mainH-2.4-adTop-hdrExtra, siblingsMarkup='', ownOpenRects='', activeHi='';
   if(canvas && canvas.modules.length>1){
     /* קיר "פתוח" של המבנה המצוייר עצמו: openFlags (מחושב למעלה דרך activeOpenFlags) כבר
        משקף נכון גם מבנה שאינו הפעיל, כשמציירים אותו דרך curModuleOpen (renderCombined/
@@ -4870,15 +5202,18 @@ async function exportPDF(){
     const meta=planMeta();
     if(canvas && canvas.modules.length>1){
       const cvs=[];
-      const combinedSvg=renderCombined();
+      const combinedSvg=renderCombined({withGeneral:true});
       if(combinedSvg) cvs.push(await svgToCanvas(combinedSvg));
+      /* דוד (2026-09-19): "אפשר להסיר את ההדמיות תחת כל סקיצה, אבל כן להביא סקיצה מלאה של כל
+         הרעיון" -- במקום עמוד הדמיה לכל מבנה בנפרד, עמוד אחד עם הדמיה של כל המבנים מורכבים יחד */
+      const isoAllSvg=renderCombinedIso();
+      if(isoAllSvg) cvs.push(await svgToCanvas(isoAllSvg));
       const savedState=state, savedOpen=curModuleOpen;
       for(let mi=0; mi<canvas.modules.length; mi++){
         const m=canvas.modules[mi];
         state=m.data; curModuleOpen=computeOpenSegments(mi); curModuleLabel=m.name;
         const built=render(true,false,true);
         cvs.push(await svgToCanvas(built.main));
-        if(built.renders) cvs.push(await svgToCanvas(built.renders));
       }
       state=savedState; curModuleOpen=savedOpen; curModuleLabel=null;
       T_OUT=state.tOut||0.05; T_IN=state.tIn||0.05; render();
