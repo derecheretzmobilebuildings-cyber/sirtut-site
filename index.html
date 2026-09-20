@@ -749,6 +749,17 @@ function cleanState(L,W,step){
   };
 }
 let state = cleanState(6,3,1);
+/* דוד (2026-09-20): "קיר 20 | גג 20 | רצפה 16 ס"מ | בטון ב־40 לפחות -- קבוע ללא שינוי". לממ"ד יש מפרט אחד בלבד.
+   אין יותר בחירת עובי (30/20) -- כל קריאה של mamadThick עברה לקבוע, והשדה נשאר בנתונים רק
+   לתאימות לאחור (PDF ישן עם 0.3 נטען ומנורמל ל-0.2). */
+const MAMAD_WALL_T=0.2, MAMAD_ROOF_T=0.2, MAMAD_FLOOR_T=0.16, MAMAD_CONCRETE='ב־40';
+const MAMAD_SPEC_HE='קיר '+Math.round(MAMAD_WALL_T*100)+' ס״מ | גג '+Math.round(MAMAD_ROOF_T*100)+' ס״מ | רצפה '+Math.round(MAMAD_FLOOR_T*100)+' ס״מ | בטון '+MAMAD_CONCRETE+' לפחות';
+function normalizeMamad(d){
+  if(!d) return d;
+  if(d.mamad) d.mamadThick=MAMAD_WALL_T;
+  (d.parts||[]).forEach(p=>{ if(p.mamad) p.mamadThick=MAMAD_WALL_T; });
+  return d;
+}
 /* ===== \u05DE\u05D1\u05E0\u05D9\u05DD \u05DE\u05D7\u05D5\u05D1\u05E8\u05D9\u05DD \u2014 \u05DB\u05DE\u05D4 \u05E1\u05E7\u05D9\u05E6\u05D5\u05EA \u05E2\u05DC \u05E7\u05E0\u05D1\u05E1 \u05DE\u05E9\u05D5\u05EA\u05E3 ===== */
 let canvas = null;   /* null = \u05DE\u05D1\u05E0\u05D4 \u05D9\u05D7\u05D9\u05D3 (\u05D1\u05E8\u05D9\u05E8\u05EA \u05DE\u05D7\u05D3\u05DC); \u05D0\u05D7\u05E8\u05EA {active, modules:[{id,name,dx,dy,rot,open:{top,bottom,left,right},data}]} */
 let canvasSeq = 1;
@@ -1104,12 +1115,12 @@ function moduleOpenSegments(idx, localWall){
   const contacts = wallContacts(idx, localWall);
   const canInherit = !wallMustStay(m, localWall);
   /* דוד (2026-09-20): "הקיר הימני-עליון של מבנה 1 מסומן בשחור וזה לא נכון -- זה בכלל הקיר של הממ"ד".
-     מבנה רגיל שצמוד לממ"ד לא בונה קיר משלו מול קיר הממ"ד -- קיר הממ"ד (20/30 ס"מ) הוא הגבול.
+     מבנה רגיל שצמוד לממ"ד לא בונה קיר משלו מול קיר הממ"ד -- קיר הממ"ד (20 ס"מ תמיד) הוא הגבול.
      קטע כזה מסומן kind='mamad' (נמחק מהקיר של המבנה, ובייצוא מצויר במקומו פס כתום של קיר השכן
      + כיתוב), להבדיל מ-'open' = פתח מעבר אמיתי (קו מקווקו). שני ממ"דים צמודים -- כל אחד שומר את הקיר שלו. */
   const selfMamad = !!m.data.mamad;
   const isMamadNb = c => !selfMamad && !!(canvas.modules[c.ki].data && canvas.modules[c.ki].data.mamad);
-  const mamadSegs = contacts.filter(isMamadNb).map(c=>[c.a,c.b,'mamad',(canvas.modules[c.ki].data.mamadThick||0.3),c.ki]);
+  const mamadSegs = contacts.filter(isMamadNb).map(c=>[c.a,c.b,'mamad',MAMAD_WALL_T,c.ki]);
   const openSegs = contacts.filter(c=>!isMamadNb(c) && (own || (c.kOpen && canInherit))).map(c=>[c.a,c.b,'open']);
   if(!openSegs.length && !mamadSegs.length) return own ? [[0,wallLen,'open']] : [];   /* דגל ידני בלי שכן גיאומטרי אמיתי -- כל הקיר פתוח, כמו קודם */
   const all=[...mergeSegs(openSegs), ...mergeSegs(mamadSegs)].sort((p,q)=>p[0]-q[0]);
@@ -1322,7 +1333,7 @@ function renderCombined(opts){
        עדיין קורא לו "מבנה 4" (למשל אחרי מחיקת מבנה מהאמצע), מה שהיה מבלבל את דוד עצמו
        כשהוא צריך להצליב בין המסך לתוכנית המודפסת. מוסיפים גם את מידות המבנה ישירות
        במקרא, כדי שגם התצוגה הכללית תענה על "מה אורך/רוחב של המבנה" בלי לפתוח עמוד נפרד. */
-    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר'+(m.data.mamad? '  ·  ממ״ד (קירות '+cm(m.data.mamadThick||0.3)+' ס״מ, בכתום)':'');
+    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר'+(m.data.mamad? '  ·  ממ״ד ('+MAMAD_SPEC_HE+', בכתום)':'');
     legend.push(nameTxt);
     /* עמוד מודפס -- בלי מסגרת "המבנה הפעיל" של העורך (הייתה מודפסת ככחול מקווקו ובלבלה) */
     const isActive = false;
@@ -1377,7 +1388,7 @@ function renderCombined(opts){
     const gc=combinedGeneralChoices();
     const fsG=0.27*tk2, rowH=0.4*tk2, hdrH=0.52*tk2, maxWm=pageW-0.8;
     const blocks=[];
-    if(gc.common.length) blocks.push({header:'מפרט כללי והזמנה (חל על כל המבנים):', rows:wrapSpecRows(groupSpecItems(gc.common.map(esc)), maxWm, fsG)});
+    if(gc.common.length) blocks.push({header:(gc.hasMamad?'מפרט כללי והזמנה (חל על כל המבנים הרגילים; הממ״ד — לפי המפרט הקבוע שלו):':'מפרט כללי והזמנה (חל על כל המבנים):'), rows:wrapSpecRows(groupSpecItems(gc.common.map(esc)), maxWm, fsG)});
     if(gc.perModule.length){
       const rowsP=[];
       gc.perModule.forEach(pm=>{ rowsP.push(...wrapSpecRows([[esc(pm.name), pm.items.map(esc)]], maxWm, fsG)); });
@@ -1953,7 +1964,7 @@ function solidRects(){
   /* \u05DE\u05D6\u05D2\u05E0\u05D9\u05DD \u05EA\u05DC\u05D5\u05D9\u05D9\u05DD \u05D2\u05D1\u05D5\u05D4 \u05E2\u05DC \u05D4\u05E7\u05D9\u05E8 \u2014 \u05DC\u05D0 \u05DE\u05EA\u05E0\u05D2\u05E9\u05D9\u05DD \u05E2\u05DD \u05E8\u05D9\u05D4\u05D5\u05D8 \u05D5\u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u05E9\u05DE\u05EA\u05D7\u05EA\u05D9\u05D4\u05DD */
   state.parts.forEach((p,i)=>{
     const [pa,pb]=partSpan(p);
-    const wt=(p.mamad?(p.mamadThick||0.3):ti);
+    const wt=(p.mamad?MAMAD_WALL_T:ti);
     if(p.dir==='h') out.push({name:'\u05D4\u05DE\u05D7\u05D9\u05E6\u05D4', kind:'part', idx:i, x:pa, y:p.x-wt/2, w:pb-pa, h:wt});
     else            out.push({name:'\u05D4\u05DE\u05D7\u05D9\u05E6\u05D4', kind:'part', idx:i, x:p.x-wt/2, y:pa, w:wt, h:pb-pa});
   });
@@ -2131,12 +2142,17 @@ function combinedProductPickDetails(){
 const WALL_HE_EXPORT={top:'קיר עליון', bottom:'קיר תחתון', left:'קיר שמאלי', right:'קיר ימני', part:'מחיצה פנימית'};
 function orderItems(includeProducts, opts){   /* opts: {drawnOnly, generalOnly, pointed} -- ראו הסבר ליד combinedGeneralChoices() */
   const out=[], b=state.bath, k=state.kitchen;
-  if(!(opts&&opts.drawnOnly)){
+  if(!(opts&&opts.drawnOnly) && !state.mamad){   /* ממ"ד = תא בטון (מפרט קבוע, ראו למטה): בלי פאנל ובלי שילדת פלדה */
     out.push('\u05E4\u05D0\u05E0\u05DC '+(state.panelType==='rockwool'?'\u05E6\u05DE\u05E8 \u05E1\u05DC\u05E2\u05D9\u05DD':'\u05E7\u05DC-\u05E7\u05E8')+' '+(state.panelThick||5)+' \u05E1\u05F4\u05DE \u05E2\u05D5\u05D1\u05D9');
     out.push('\u05E9\u05D9\u05DC\u05D3\u05EA \u05E4\u05DC\u05D3\u05D4 \u05DE\u05E8\u05D5\u05EA\u05DB\u05EA \u05DC\u05E4\u05D9 \u05EA\u05E7\u05DF \u05EA\u05F4\u05D9 1225 (\u05D7\u05D5\u05E7\u05EA \u05D4\u05E4\u05DC\u05D3\u05D4)');
   }
   /* \u05E4\u05D9\u05E8\u05D5\u05D8 \u05D4\u05E4\u05E8\u05D5\u05E4\u05D9\u05DC\u05D9\u05DD \u05D4\u05DE\u05DC\u05D0 \u05DC\u05E4\u05D9 \u05E2\u05D5\u05D1\u05D9 \u05E4\u05D0\u05E0\u05DC (FRAME_SPEC) \u05DB\u05D1\u05E8 \u05D0\u05D9\u05E0\u05D5 \u05DB\u05D0\u05DF \u2014 \u05DE\u05D5\u05E6\u05D2 \u05DB\u05D1\u05DC\u05D5\u05E7 \u05E0\u05E4\u05E8\u05D3 \u05D1\u05E1\u05E4\u05D7 \u05D4\u05D4\u05E1\u05DB\u05DD (\u05E8\u05D0\u05D4 agreeFormSvg) \u05D5\u05DC\u05D0 \u05D1\u05DE\u05E4\u05E8\u05D8 \u05D4\u05E9\u05D5\u05D8\u05E3 \u05D4\u05D6\u05D4 \u2014 \u05DC\u05D1\u05E7\u05E9\u05EA \u05D3\u05D5\u05D3 */
   if(!(opts&&opts.generalOnly)){   /* פריטים מצוירים -- מדולגים כשמבקשים רק בחירות כלליות */
+  /* ממ"ד -- מפרט אחד קבוע (דוד): קיר 20 | גג 20 | רצפה 16 ס"מ | בטון ב־40 לפחות. מופיע כאן (ולא רק בעמוד
+     המבנה של ייצוא רב-מבנים) כדי שגם מפרט של מבנה בודד וגם ההסכם יגידו את זה במפורש */
+  if(state.mamad) out.push('ממ״ד — '+MAMAD_SPEC_HE+' (הקירות מסומנים בכתום בסקיצה)');
+  const nMm=(state.parts||[]).filter(p=>p.mamad).length;
+  if(nMm) out.push((nMm>1? nMm+' קירות ממ״ד פנימיים':'קיר ממ״ד פנימי')+' — '+cm(MAMAD_WALL_T)+' ס״מ, בטון '+MAMAD_CONCRETE+' לפחות (מסומן בכתום בסקיצה)');
   if(b.show){
     out.push('\u05D9\u05D7\u05D9\u05D3\u05EA \u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD '+(b.w||1.2)+'\u00D7'+(b.d||1.2)+' \u05DE\u05F3');
     out.push('\u05D0\u05E1\u05DC\u05D4');
@@ -2226,11 +2242,14 @@ function combinedOrderItems(includeProducts){
   if(!canvas || canvas.modules.length<2) return orderItems(includeProducts);
   const perModule = canvas.modules.map(m=>withModuleState(m, ()=>orderItems(includeProducts)));
   const out=[];
-  const sharedHead=[0,1].filter(idx=>perModule[0][idx]!==undefined && perModule.every(list=>list[idx]===perModule[0][idx]));
-  sharedHead.forEach(idx=>out.push(perModule[0][idx]));
+  /* הפאנל והשילדה משותפים רק בין המבנים הרגילים -- לממ"ד (תא בטון) אין אותם בכלל, אז הוא לא משתתף בהשוואה */
+  const regular=canvas.modules.map((m,i)=>i).filter(i=>!canvas.modules[i].data.mamad);
+  const ref=regular.length?regular[0]:-1;
+  const sharedHead=ref<0?[]:[0,1].filter(idx=>perModule[ref][idx]!==undefined && regular.every(i=>perModule[i][idx]===perModule[ref][idx]));
+  sharedHead.forEach(idx=>out.push(perModule[ref][idx]));
   canvas.modules.forEach((m,mi)=>{
     perModule[mi].forEach((it,idx)=>{
-      if(sharedHead.includes(idx)) return;
+      if(!m.data.mamad && sharedHead.includes(idx)) return;
       out.push(m.name+': '+it);
     });
   });
@@ -2301,14 +2320,18 @@ function generalChoiceItems(){
 function combinedGeneralChoices(){
   if(!canvas || canvas.modules.length<2) return {common:generalChoiceItems(), perModule:[]};
   const per=canvas.modules.map(m=>withModuleState(m, generalChoiceItems));
-  const common=per[0].filter(it=>per.every(list=>list.includes(it)));
+  /* "משותף" נמדד בין המבנים הרגילים בלבד -- לממ"ד (תא בטון, מפרט קבוע) אין פאנל/שילדה, ובלי ההחרגה הזו
+     שורות הפאנל והשילדה היו נופלות מהמפרט הכללי ומופיעות שוב ושוב "לפי מבנה" */
+  const regular=canvas.modules.map((m,i)=>i).filter(i=>!canvas.modules[i].data.mamad);
+  const base=regular.length?regular:canvas.modules.map((m,i)=>i);
+  const common=per[base[0]].filter(it=>base.every(i=>per[i].includes(it)));
   const perModule=canvas.modules.map((m,i)=>({name:m.name, items:per[i].filter(it=>!common.includes(it))})).filter(x=>x.items.length);
-  return {common, perModule};
+  const hasMamad=regular.length<canvas.modules.length;
+  return {common, perModule, hasMamad};
 }
 /* מה שמצויר בסקיצה של המבנה הנוכחי בלבד -- עם ציון הקיר לדלתות/מזגנים, חדרים מסומנים והערות */
 function moduleDrawnItems(){
-  const out=orderItems(false,{drawnOnly:true, pointed:true});
-  if(state.mamad) out.unshift('ממ״ד — כל קירות המעטפת בעובי '+cm(state.mamadThick||0.3)+' ס״מ (מסומנים בכתום בסקיצה)');
+  const out=orderItems(false,{drawnOnly:true, pointed:true});   /* שורת הממ"ד (קיר 20 | גג 20 | רצפה 16 | ב־40) כבר בפנים, ראו orderItems */
   const rooms=(state.rooms||[]).map(r=>String(r.name||'').trim()).filter(Boolean);
   if(rooms.length) out.push('חדרים מסומנים בסקיצה: '+rooms.join(', '));
   (state.notes||[]).map(n=>String(n.text||'').trim()).filter(Boolean).forEach(n=>out.push('הערה בסקיצה: '+n));
@@ -2323,6 +2346,16 @@ function calcWeightKg(){
   /* \u05DE\u05E2\u05D8\u05E4\u05EA: \u05E9\u05DC\u05D3 \u05E4\u05DC\u05D3\u05D4 \u05E7\u05DC + \u05E4\u05D0\u05E0\u05DC \u05E1\u05E0\u05D3\u05D5\u05D5\u05D9\u05E5' (\u05E7\u05D9\u05E8\u05D5\u05EA+\u05D2\u05D2) + \u05E8\u05E6\u05E4\u05D4 \u2014 \u05DB-115 \u05E7"\u05D2/\u05DE"\u05E8 \u05D1\u05E2\u05D5\u05D1\u05D9 \u05E4\u05D0\u05E0\u05DC \u05EA\u05E7\u05E0\u05D9, \u05E2\u05DD \u05D4\u05EA\u05D0\u05DE\u05D4 \u05E7\u05DC\u05D4 \u05DC\u05E2\u05D5\u05D1\u05D9 \u05D1\u05E4\u05D5\u05E2\u05DC */
   const panelFactor=0.55+0.45*(t/0.05);
   let kg=area*115*panelFactor;
+  if(state.mamad){
+    /* ממ"ד = תא בטון מזוין (דוד: קיר 20 | גג 20 | רצפה 16 ס"מ | ב־40 לפחות) -- לא מעטפת פאנלים.
+       נפח בטון: קירות (היקף × גובה × 20 ס"מ, בניכוי פתחי דלתות/חלונות) + גג + רצפה; בטון מזוין ~2,500 ק"ג/מ"ק.
+       דלתות/חלונות נשארים במשקלים הרגילים למטה (דלת/חלון הדף כבדים יותר -- יעודכן כשדוד ייתן מספרים). */
+    const doorArea=(state.doors||[]).reduce((s2,d)=>s2+(d.w||0.9)*Math.min(H,2.1),0);
+    const winArea=(state.wins||[]).reduce((s2,w)=>s2+(w.w||1)*(w.h===undefined?1:w.h),0)
+                 +(state.cornerWins||[]).reduce((s2,cw)=>s2+((cw.leg1||1)+(cw.leg2||1))*(cw.h===undefined?1:cw.h),0);
+    const wallVol=Math.max(0, perim*H-doorArea-winArea)*MAMAD_WALL_T;
+    kg=(wallVol + area*MAMAD_ROOF_T + area*MAMAD_FLOOR_T)*2500;
+  }
   (state.parts||[]).forEach(p=>{
     const sp=partSpan(p); kg += Math.max(0,sp[1]-sp[0])*H*22;   /* \u05DE\u05D7\u05D9\u05E6\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA \u05D3\u05D5-\u05E6\u05D3\u05D3\u05D9\u05EA */
   });
@@ -2538,10 +2571,9 @@ function moduleRow(m,i){
       <label style="display:flex; align-items:center; gap:4px">אורך <input type="number" class="mod-L" step="0.1" min="3" max="30" value="${m.data.L}" style="width:64px"> מ'</label>
       <label style="display:flex; align-items:center; gap:4px">רוחב <input type="number" class="mod-W" step="0.1" min="2" max="8" value="${m.data.W}" style="width:64px"> מ'</label>
       <label style="display:flex; align-items:center; gap:4px">עובי קיר <input type="number" class="mod-T" step="1" min="3" max="30" value="${Math.round((m.data.tOut||0.05)*100)}" style="width:64px"> ס״מ</label>
-      <label style="display:flex; align-items:center; gap:4px">ממ״ד <select class="mod-mamad" title="סימון כל קירות המבנה (המעטפת) כממ״ד, לפי עובי">
+      <label style="display:flex; align-items:center; gap:4px">ממ״ד <select class="mod-mamad" title="סימון כל קירות המבנה (המעטפת) כממ״ד — מפרט קבוע: ${MAMAD_SPEC_HE}">
         <option value=""${!m.data.mamad?' selected':''}>קיר רגיל</option>
-        <option value="0.3"${m.data.mamad&&(m.data.mamadThick||0.3)===0.3?' selected':''}>ממ״ד — 30 ס״מ</option>
-        <option value="0.2"${m.data.mamad&&m.data.mamadThick===0.2?' selected':''}>ממ״ד — 20 ס״מ</option>
+        <option value="0.2"${m.data.mamad?' selected':''}>ממ״ד — קיר 20 · גג 20 · רצפה 16 ס״מ</option>
       </select></label>
     </div>
     ${multi?`<button type="button" class="mod-snap btn" style="width:100%; padding:9px; font-size:13px; font-weight:600; margin-top:6px" data-act="mod-snap" title="\u05D4\u05E6\u05DE\u05D3\u05D4 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05DC\u05DE\u05D1\u05E0\u05D4 \u05D4\u05E7\u05E8\u05D5\u05D1 \u05D1\u05D9\u05D5\u05EA\u05E8">\u{1F9F2} \u05D4\u05E6\u05DE\u05D3 \u05DC\u05DE\u05D1\u05E0\u05D4 \u05E7\u05E8\u05D5\u05D1</button>`:''}
@@ -2627,10 +2659,9 @@ function rebuildParts(){
         <option value="open"${p.doorType==='open'?' selected':''}>\u05E4\u05EA\u05D7 \u05D1\u05DC\u05D9 \u05D3\u05DC\u05EA</option>
         <option value="none"${p.doorType==='none'?' selected':''}>קיר מלא (בלי פתח)</option>
       </select>
-      <select class="p-mamad" title="עובי הקיר וסימון ממ״ד">
+      <select class="p-mamad" title="סימון המחיצה כקיר ממ״ד — מפרט קבוע: ${MAMAD_SPEC_HE}">
         <option value=""${!p.mamad?' selected':''}>קיר רגיל</option>
-        <option value="0.3"${p.mamad&&(p.mamadThick||0.3)===0.3?' selected':''}>ממ״ד — 30 ס״מ</option>
-        <option value="0.2"${p.mamad&&p.mamadThick===0.2?' selected':''}>ממ״ד — 20 ס״מ</option>
+        <option value="0.2"${p.mamad?' selected':''}>קיר ממ״ד — 20 ס״מ, בטון ב־40</option>
       </select>
       <span class="sl">${h?'\u05DE\u05E8\u05D7\u05E7 \u05DE\u05D9\u05DE\u05D9\u05DF':'\u05DE\u05E8\u05D7\u05E7 \u05DE\u05DC\u05DE\u05D8\u05D4'}</span><input type="number" class="p-doff" step="0.05" value="${p.doorOff}">
       <button class="ab" data-act="dpos">${h?'\u25C0':'\u25B2'}</button>
@@ -2970,7 +3001,7 @@ function bindPanel(){
         if(e.target.classList.contains('p-from')){ const v=parseFloat(e.target.value); p.from=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-to')){ const v=parseFloat(e.target.value); p.to=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-dtype')) p.doorType=e.target.value;
-        if(e.target.classList.contains('p-mamad')){ const v=e.target.value; p.mamad=(v!==''); if(p.mamad) p.mamadThick=+v; }
+        if(e.target.classList.contains('p-mamad')){ const v=e.target.value; p.mamad=(v!==''); if(p.mamad) p.mamadThick=MAMAD_WALL_T; }
         /* see addPart handler: partWarn lives in acRow/sockRow, so refresh those too. */
         clampAll(); rebuildParts(); rebuildAcs(); rebuildSocks(); rebuildRooms(); updateSummary(); render(); return;
       }
@@ -3132,7 +3163,7 @@ function bindPanel(){
     if(e.target.classList.contains('mod-L') || e.target.classList.contains('mod-W')){ const idx=+row.dataset.mod; if(canvas.active!==idx){ canvas.active=idx; state=canvas.modules[idx].data; undoStack=[]; syncInputs(); } const axis=e.target.classList.contains('mod-L')?'L':'W'; resizeModuleDim(axis, e.target.value); }
     if(e.target.classList.contains('mod-T')){ const idx=+row.dataset.mod; if(canvas.active!==idx){ canvas.active=idx; state=canvas.modules[idx].data; undoStack=[]; syncInputs(); } const v=clamp(+e.target.value||5,3,30)/100; state.tOut=v; state.tIn=v; }
     if(e.target.classList.contains('mod-open')) m.open[e.target.dataset.wall]=e.target.checked;
-    if(e.target.classList.contains('mod-mamad')){ const v=e.target.value; m.data.mamad=(v!==''); if(m.data.mamad) m.data.mamadThick=+v; }
+    if(e.target.classList.contains('mod-mamad')){ const v=e.target.value; m.data.mamad=(v!==''); if(m.data.mamad) m.data.mamadThick=MAMAD_WALL_T; }
     if(e.target.classList.contains('mod-base-sel')){ const nb=+e.target.value; applyPresetToModule(+row.dataset.mod, m.rel||'side', nb); flash('החיבור עודכן — המבנה הוצמד אוטומטית'); }
     afterChange();
   });
@@ -3530,7 +3561,7 @@ function fitSvgToWrap(){
 /* ===== \u05E9\u05E8\u05D8\u05D5\u05D8 ===== */
 function render(forExport, fragmentOnly, splitRenders){
   T_OUT = state.tOut||0.05; T_IN = state.tIn||0.05;
-  const {L,W}=state, t=(state.mamad?(state.mamadThick||0.3):T_OUT), ti=T_IN;
+  const {L,W}=state, t=(state.mamad?MAMAD_WALL_T:T_OUT), ti=T_IN;
   /* קירות שמסומנים "פתוחים" (חיבור למבנה שכן) — דלת/חלון שיושבים על קיר כזה לא מצוירים, כדי שלא "יצוצו" מעל הפתח */
   const openFlags=activeOpenFlags();
 
@@ -3579,7 +3610,7 @@ function render(forExport, fragmentOnly, splitRenders){
   /* \u05DE\u05E2\u05D8\u05E4\u05EA */
   const shellIdx = canvas ? canvas.modules.findIndex(mm=>mm.data===state) : -1;
 const shellTouch = shellIdx>=0 ? computeTouchFlags(shellIdx) : {top:false,bottom:false,left:false,right:false};
-const shellMamad = !!state.mamad, shellT = shellMamad ? (state.mamadThick||0.3) : t, shellFill = shellMamad ? '#b45309' : '#000';
+const shellMamad = !!state.mamad, shellT = shellMamad ? MAMAD_WALL_T : t, shellFill = shellMamad ? '#b45309' : '#000';
 const shellTop = shellTouch.top ? shellT/2 : shellT, shellBot = shellTouch.bottom ? shellT/2 : shellT, shellLft = shellTouch.left ? shellT/2 : shellT, shellRgt = shellTouch.right ? shellT/2 : shellT;
 S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect(0,0,shellLft,W,shellFill)+rect(L-shellRgt,0,shellRgt,W,shellFill);
 
@@ -3647,7 +3678,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const [pa,pb]=partSpan(p);
     const dw=p.doorW, dt=p.doorType||'swing';
     let ps='', pd='';
-    const wt=(p.mamad?(p.mamadThick||0.3):ti);
+    const wt=(p.mamad?MAMAD_WALL_T:ti);
     const wallFill=(p.mamad?'#b45309':'#000');
     if(dt==='none'){
       if(p.dir==='h'){ const y=p.x, y0=y-wt/2; ps += rect(pa,y0,pb-pa,wt,wallFill); }
@@ -4468,7 +4499,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
           if(kind==='mamad'){
             const nbM=canvas.modules[kiM], cM=touching.find(c=>c.ki===kiM);
             const hasDoor=!!(nbM && cM && (nbM.data.doors||[]).some(d=>d.wall===cM.kWall));
-            openRows.push('קיר '+wallLblR[side]+' — '+where+': אין כאן קיר של '+(curModuleLabel||canvas.modules[curIdx].name)+' — הגבול הוא קיר הממ״ד של '+(nbM?nbM.name:'')+' ('+cm(thk||0.3)+' ס״מ, מסומן בכתום'+(hasDoor?', עם דלת':'')+(cM&&cM.gap>0.03?', רווח '+cm(cM.gap)+' ס״מ':'')+')');
+            openRows.push('קיר '+wallLblR[side]+' — '+where+': אין כאן קיר של '+(curModuleLabel||canvas.modules[curIdx].name)+' — הגבול הוא קיר הממ״ד של '+(nbM?nbM.name:'')+' (קיר ממ״ד '+cm(MAMAD_WALL_T)+' ס״מ, מסומן בכתום'+(hasDoor?', עם דלת':'')+(cM&&cM.gap>0.03?', רווח '+cm(cM.gap)+' ס״מ':'')+')');
             return;
           }
           let txt='קיר '+wallLblR[side]+' — '+(full ? 'פתוח לכל האורך' : 'פתוח '+where);
@@ -5560,7 +5591,9 @@ function agreeFormSvg(){
   };
   /* preFixed/postFixed mirror the fy+= additions actually used below for a given mode, so the fit
      check always matches what will really be rendered. */
-  const preFixed=mo=>mo.hdr+mo.sz1+mo.sz2+mo.fs1+mo.fs2+mo.fs3;
+  const anyMamad = canvas ? canvas.modules.some(m=>m.data.mamad) : !!state.mamad;
+  const allMamad = canvas ? canvas.modules.every(m=>m.data.mamad) : !!state.mamad;
+  const preFixed=mo=>mo.hdr+mo.sz1+mo.sz2+mo.fs1+mo.fs2+mo.fs3+((anyMamad&&!allMamad)?mo.fs2:0);
   const postFixed=mo=>mo.postGrid+mo.notesHdr+3*mo.noteLn+mo.postNotes+mo.meetPay+14+mo.sigGap+mo.dateGap;
   const tryMode=mo=>{
     if(!chosen.length) return {mo, Lp:null, fits:true};
@@ -5594,11 +5627,19 @@ function agreeFormSvg(){
     fy+=M.sz2;
   }
   /* \u05DE\u05E4\u05E8\u05D8 \u05E9\u05DC\u05D3\u05D4 \u05DC\u05E4\u05D9 \u05E2\u05D5\u05D1\u05D9 \u05D4\u05E4\u05D0\u05E0\u05DC \u05E9\u05E0\u05D1\u05D7\u05E8 \u2014 \u05D1\u05DC\u05D5\u05E7 \u05E0\u05E4\u05E8\u05D3 \u05D1\u05D4\u05E1\u05DB\u05DD, \u05DC\u05D0 \u05D1\u05DE\u05E4\u05E8\u05D8 \u05D4\u05E9\u05D5\u05D8\u05E3 (\u05DC\u05D1\u05E7\u05E9\u05EA \u05D3\u05D5\u05D3) */
-  {
+  if(allMamad){
+    /* ממ"ד בלבד -- תא בטון, אין שילדת פלדה: במקום מפרט השלדה, המפרט הקבוע של הממ"ד (דוד) */
+    B += agT(196,fy,'מפרט ממ״ד (קבוע):',3.7,'700'); fy+=M.fs1;
+    B += agT(196,fy,MAMAD_SPEC_HE,3.3); fy+=M.fs2+M.fs3;
+  } else {
     const fs = FRAME_SPEC[state.panelThick] || FRAME_SPEC[5];
     B += agT(196,fy,'\u05DE\u05E4\u05E8\u05D8 \u05E9\u05DC\u05D3\u05D4 (\u05DC\u05E4\u05D9 \u05E2\u05D5\u05D1\u05D9 \u05E4\u05D0\u05E0\u05DC '+(state.panelThick||5)+' \u05E1\u05F4\u05DE):',3.7,'700'); fy+=M.fs1;
     B += agT(196,fy,'\u05D4\u05D9\u05E7\u05E4\u05D9\u05EA '+fs.peri+' \u05DE\u05F4\u05DE  \u00B7  \u05E2\u05DE\u05D5\u05D3\u05D9\u05DD '+fs.col+' \u05DE\u05F4\u05DE  \u00B7  \u05E7\u05D5\u05E8\u05D5\u05EA \u05D2\u05D2 '+fs.roof+' \u05DE\u05F4\u05DE',3.3); fy+=M.fs2;
     B += agT(196,fy,'\u05E7\u05D5\u05E9\u05E8\u05D5\u05EA \u05E8\u05D0\u05E9\u05D9\u05D5\u05EA \u05DC\u05E8\u05E6\u05E4\u05D4 '+fs.floorMain+' \u05DE\u05F4\u05DE  \u00B7  \u05E7\u05D5\u05E9\u05E8\u05D5\u05EA \u05DE\u05E9\u05E0\u05D9\u05D5\u05EA \u05DC\u05E8\u05E6\u05E4\u05D4 '+fs.floorSec+' \u05DE\u05F4\u05DE',3.3); fy+=M.fs3;
+    if(anyMamad){
+      const names=canvas.modules.filter(m=>m.data.mamad).map(m=>m.name).join(', ');
+      B += agT(196,fy,'ממ״ד ('+names+') — תא בטון, לא שילדה: '+MAMAD_SPEC_HE,3.3,'','#555'); fy+=M.fs2;
+    }
   }
   if(chosen.length){
     B += agT(196,fy,'\u05DB\u05DC\u05D5\u05DC \u05D1\u05DE\u05D1\u05E0\u05D4 (\u05DC\u05E4\u05D9 \u05D4\u05E1\u05E7\u05D9\u05E6\u05D4):',3.7,'700'); fy+=8.8;
@@ -5947,14 +5988,14 @@ async function loadPlanFromPdf(file){
       const mods=planData.modules.map(m=>({
         id:canvasSeq++, name:m.name, dx:m.dx||0, dy:m.dy||0, rot:m.rot||0, rel:m.rel||null,
         open:m.open||{top:false,bottom:false,left:false,right:false},
-        data:Object.assign(cleanState(m.data.L, m.data.W, m.data.step), m.data)
+        data:normalizeMamad(Object.assign(cleanState(m.data.L, m.data.W, m.data.step), m.data))
       }));
       canvas={ active:Math.min(planData.active||0, mods.length-1), modules:mods };
       state=canvas.modules[canvas.active].data;
     } else {
       const d=planData.data;
       canvas=null;
-      setState(Object.assign(cleanState(d.L, d.W, d.step), d));
+      setState(normalizeMamad(Object.assign(cleanState(d.L, d.W, d.step), d)));
     }
     afterChange();
     flash(meta.kind==='agreement' ? '\u05D4\u05EA\u05D5\u05DB\u05E0\u05D9\u05EA \u05E0\u05D8\u05E2\u05E0\u05D4 \u05DE\u05EA\u05D5\u05DA \u05E7\u05D5\u05D1\u05E5 \u05D4\u05D4\u05E1\u05DB\u05DD \u2014 \u05D0\u05E4\u05E9\u05E8 \u05DC\u05D4\u05DE\u05E9\u05D9\u05DA \u05DC\u05E2\u05E8\u05D5\u05DA' : '\u05D4\u05EA\u05D5\u05DB\u05E0\u05D9\u05EA \u05E0\u05D8\u05E2\u05E0\u05D4 \u05DE\u05D4-PDF \u2014 \u05D0\u05E4\u05E9\u05E8 \u05DC\u05D4\u05DE\u05E9\u05D9\u05DA \u05DC\u05E2\u05E8\u05D5\u05DA');
