@@ -1081,9 +1081,10 @@ function wallContacts(idx, localWall){
   return out.sort((p,q)=>p.a-q.a);
 }
 function mergeSegs(segs){
-  const srt=segs.map(x=>[x[0],x[1]]).sort((a,b)=>a[0]-b[0]);
+  /* ממזג קטעים חופפים/צמודים; קטע = [a, b, kind, ...] -- מתמזגים רק קטעים מאותו סוג (kind), השדות הנוספים נשמרים מהראשון */
+  const srt=segs.map(x=>x.slice()).sort((a,b)=>a[0]-b[0]);
   const out=[];
-  srt.forEach(sg=>{ const last=out[out.length-1]; if(last && sg[0]<=last[1]+0.02){ last[1]=Math.max(last[1],sg[1]); } else out.push(sg); });
+  srt.forEach(sg=>{ const last=out[out.length-1]; if(last && (last[2]||'open')===(sg[2]||'open') && sg[0]<=last[1]+0.02){ last[1]=Math.max(last[1],sg[1]); } else out.push(sg); });
   return out;
 }
 /* דגל m.open[wall] מסמן קיר כ"פתוח בגלל חיבור", אבל כשלמבנה השכן מידות שונות מהמבנה
@@ -1099,12 +1100,25 @@ function moduleOpenSegments(idx, localWall){
   if(!m) return [];
   const wallLen = (localWall==='top'||localWall==='bottom') ? m.data.L : m.data.W;
   const own = !!(m.open && m.open[localWall]);
-  if(!canvas || canvas.modules.length<2) return own ? [[0,wallLen]] : [];
+  if(!canvas || canvas.modules.length<2) return own ? [[0,wallLen,'open']] : [];
   const contacts = wallContacts(idx, localWall);
   const canInherit = !wallMustStay(m, localWall);
-  const segs = contacts.filter(c=> own || (c.kOpen && canInherit)).map(c=>[c.a,c.b]);
-  if(!segs.length) return own ? [[0,wallLen]] : [];   /* דגל ידני בלי שכן גיאומטרי אמיתי -- כל הקיר פתוח, כמו קודם */
-  return mergeSegs(segs);
+  /* דוד (2026-09-20): "הקיר הימני-עליון של מבנה 1 מסומן בשחור וזה לא נכון -- זה בכלל הקיר של הממ"ד".
+     מבנה רגיל שצמוד לממ"ד לא בונה קיר משלו מול קיר הממ"ד -- קיר הממ"ד (20/30 ס"מ) הוא הגבול.
+     קטע כזה מסומן kind='mamad' (נמחק מהקיר של המבנה, ובייצוא מצויר במקומו פס כתום של קיר השכן
+     + כיתוב), להבדיל מ-'open' = פתח מעבר אמיתי (קו מקווקו). שני ממ"דים צמודים -- כל אחד שומר את הקיר שלו. */
+  const selfMamad = !!m.data.mamad;
+  const isMamadNb = c => !selfMamad && !!(canvas.modules[c.ki].data && canvas.modules[c.ki].data.mamad);
+  const mamadSegs = contacts.filter(isMamadNb).map(c=>[c.a,c.b,'mamad',(canvas.modules[c.ki].data.mamadThick||0.3),c.ki]);
+  const openSegs = contacts.filter(c=>!isMamadNb(c) && (own || (c.kOpen && canInherit))).map(c=>[c.a,c.b,'open']);
+  if(!openSegs.length && !mamadSegs.length) return own ? [[0,wallLen,'open']] : [];   /* דגל ידני בלי שכן גיאומטרי אמיתי -- כל הקיר פתוח, כמו קודם */
+  const all=[...mergeSegs(openSegs), ...mergeSegs(mamadSegs)].sort((p,q)=>p[0]-q[0]);
+  /* שארית קיר זעירה (עד NEAR_EPS) בין שני קטעים -- למשל 10 ס"מ בין פתח המעבר לקיר הממ"ד, כשהשכנים
+     לא צמודים במדויק -- נבלעת, כדי שלא יישאר "גדם" של קיר שנראה כמו שבר */
+  for(let i=0;i<all.length-1;i++){ if(all[i+1][0]-all[i][1]>0 && all[i+1][0]-all[i][1]<=NEAR_EPS) all[i][1]=all[i+1][0]; }
+  if(all.length && all[0][0]>0 && all[0][0]<=NEAR_EPS) all[0][0]=0;
+  if(all.length && wallLen-all[all.length-1][1]>0 && wallLen-all[all.length-1][1]<=NEAR_EPS) all[all.length-1][1]=wallLen;
+  return all;
 }
 function wallTouchesNeighbor(idx, localWall){
   const m = canvas && canvas.modules[idx]; if(!m) return false;
@@ -1185,10 +1199,18 @@ function openWallDashes(segs, t, L, W){
   if(!segs) return '';
   const dash=(x1,y1,x2,y2)=> (Math.hypot(x2-x1,y2-y1)>0.05) ? `<line x1="${f3(x1)}" y1="${f3(y1)}" x2="${f3(x2)}" y2="${f3(y2)}" stroke="#94a3b8" stroke-width="0.03" stroke-dasharray="0.14 0.1" stroke-linecap="round"/>` : '';
   let out='';
-  (segs.top||[]).forEach(([a,b])=>{ out+=dash(a,t/2,b,t/2); });
-  (segs.bottom||[]).forEach(([a,b])=>{ out+=dash(a,W-t/2,b,W-t/2); });
-  (segs.left||[]).forEach(([a,b])=>{ out+=dash(t/2,a,t/2,b); });
-  (segs.right||[]).forEach(([a,b])=>{ out+=dash(L-t/2,a,L-t/2,b); });
+  const isOpen=sg=>(sg[2]||'open')==='open';
+  (segs.top||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(a,t/2,b,t/2); });
+  (segs.bottom||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(a,W-t/2,b,W-t/2); });
+  (segs.left||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(t/2,a,t/2,b); });
+  (segs.right||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(L-t/2,a,L-t/2,b); });
+  /* קיר ממ"ד של מבנה צמוד -- פס כתום שקוף-למחצה מחוץ למתאר, בדיוק במקום שבו הקיר של השכן נמצא */
+  const band=(x,y,w,h)=> (w>0.02&&h>0.02) ? `<rect x="${f3(x)}" y="${f3(y)}" width="${f3(w)}" height="${f3(h)}" fill="#b45309" fill-opacity="0.5" stroke="#b45309" stroke-width="0.012"/>` : '';
+  const isMamad=sg=>sg[2]==='mamad';
+  (segs.top||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(a,-(thk||0.3),b-a,thk||0.3); });
+  (segs.bottom||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(a,W,b-a,thk||0.3); });
+  (segs.left||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(-(thk||0.3),a,thk||0.3,b-a); });
+  (segs.right||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(L,a,thk||0.3,b-a); });
   return out;
 }
 function segOverlaps(segs,a,b){ return !!segs && segs.some(([s,e])=>Math.min(b,e)-Math.max(a,s)>1e-6); }
@@ -4439,10 +4461,17 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
         const segsS=openFlags[side]; if(!segsS || !segsS.length) return;
         const wallLen=(side==='top'||side==='bottom')?L:W;
         const contacts=wallContacts(curIdx, side);
-        segsS.forEach(([a,b])=>{
+        segsS.forEach(([a,b,kind,thk,kiM])=>{
           const full = a<=0.02 && b>=wallLen-0.02;
           const touching=contacts.filter(c=>Math.min(b,c.b)-Math.max(a,c.a)>0.02);
-          let txt='קיר '+wallLblR[side]+' — '+(full ? 'פתוח לכל האורך' : 'פתוח מ-'+fmt(a)+' עד '+fmt(b)+' מ׳ (נמדד מהקצה '+((side==='top'||side==='bottom')?'השמאלי':'העליון')+')');
+          const where = full ? 'לכל האורך' : 'מ-'+fmt(a)+' עד '+fmt(b)+' מ׳ (נמדד מהקצה '+((side==='top'||side==='bottom')?'השמאלי':'העליון')+')';
+          if(kind==='mamad'){
+            const nbM=canvas.modules[kiM], cM=touching.find(c=>c.ki===kiM);
+            const hasDoor=!!(nbM && cM && (nbM.data.doors||[]).some(d=>d.wall===cM.kWall));
+            openRows.push('קיר '+wallLblR[side]+' — '+where+': אין כאן קיר של '+(curModuleLabel||canvas.modules[curIdx].name)+' — הגבול הוא קיר הממ״ד של '+(nbM?nbM.name:'')+' ('+cm(thk||0.3)+' ס״מ, מסומן בכתום'+(hasDoor?', עם דלת':'')+(cM&&cM.gap>0.03?', רווח '+cm(cM.gap)+' ס״מ':'')+')');
+            return;
+          }
+          let txt='קיר '+wallLblR[side]+' — '+(full ? 'פתוח לכל האורך' : 'פתוח '+where);
           if(touching.length){
             txt+=' · חיבור אל '+touching.map(c=>canvas.modules[c.ki].name+(c.gap>0.03?' (רווח '+cm(c.gap)+' ס״מ)':'')).join(' ו-');
             const stay=touching.filter(c=>c.kMustStay);
@@ -4453,14 +4482,17 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       });
       if(openRows.length){
         const oy0=W+1.55+legendH;
-        D += `<text x="${f3(L)}" y="${f3(oy0)}" font-size="0.27" font-weight="700" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">קירות פתוחים (חיבור בין מבנים) — מסומנים בקו מקווקו:</text>`;
-        textNeedW=Math.max(textNeedW, estW('קירות פתוחים (חיבור בין מבנים) — מסומנים בקו מקווקו:',0.27));
+        const capHdr='חיבורים למבנים צמודים:';
+        const capKey='מקווקו = פתח מעבר · כתום = קיר ממ״ד של המבנה השכן';
+        D += `<text x="${f3(L)}" y="${f3(oy0)}" font-size="0.27" font-weight="700" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">${capHdr}</text>`;
+        D += `<text x="${f3(L)}" y="${f3(oy0+0.34)}" font-size="0.2" fill="#78716c" text-anchor="start" direction="rtl" style="direction:rtl">${capKey}</text>`;
+        textNeedW=Math.max(textNeedW, estW(capHdr,0.27), estW(capKey,0.2));
         openRows.forEach((txt,i)=>{
-          const y=oy0+0.46+i*0.38;
+          const y=oy0+0.78+i*0.38;
           D += `<text x="${f3(L-0.17)}" y="${f3(y)}" font-size="0.235" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">${esc(txt)}</text>`;
           textNeedW=Math.max(textNeedW, estW(txt,0.235)+0.17);
         });
-        openLegendH=0.75+openRows.length*0.38;
+        openLegendH=1.07+openRows.length*0.38;
       }
     }
   }
