@@ -1047,47 +1047,83 @@ function moduleConnected(idx){
    off מקומית, כמו door/window .off) כדי שמחיקת הקיר/השתקת דלת-חלון תוגבל לחלק שבאמת
    מחובר, ולא תבלע את כל אורך הקיר — בדיוק התקלה שדוד דיווח עליה ("הקיר הפתוח צריך להיות
    רק בחלק של החיבור עצמו ולא על כל המבנה"). */
-function moduleOpenSegments(idx, localWall){
-  const m = canvas && canvas.modules[idx];
-  if(!m || !m.open[localWall]) return [];
-  const wallLen = (localWall==='top'||localWall==='bottom') ? m.data.L : m.data.W;
-  if(!canvas || canvas.modules.length<2) return [[0,wallLen]];
+const NEAR_EPS = 0.15;   /* מבנים במרחק של עד 15 ס"מ נחשבים צמודים לצורך זיהוי שכן/חיבור (אי-דיוק מיקום שכיח בסקיצה; הגיאומטריה עצמה לא משתנה) */
+/* קיר שיש עליו אלמנטים (דלת/חלון/חלון פינתי/מזגן/מנוע/שקע/נקודת מים) חייב להישאר קיר; כך גם כל קירות ממ"ד */
+function wallHasElements(d, wall){
+  const has=arr=>(arr||[]).some(o=>o && o.wall===wall);
+  const cw=(d.cornerWins||[]).some(c=>{ const k=(c&&c.corner)||'TL';
+    return (wall==='top'&&(k==='TL'||k==='TR'))||(wall==='bottom'&&(k==='BL'||k==='BR'))||(wall==='left'&&(k==='TL'||k==='BL'))||(wall==='right'&&(k==='TR'||k==='BR')); });
+  return has(d.doors)||has(d.wins)||has(d.acs)||has(d.conds)||has(d.socks)||has(d.waters)||cw;
+}
+function wallMustStay(m, wall){ return !!(m && m.data && m.data.mamad) || wallHasElements((m&&m.data)||{}, wall); }
+/* כל המבנים שנוגעים (או כמעט נוגעים, עד NEAR_EPS) בקיר מקומי נתון של מבנה idx: טווח ההשקה בקואורדינטת
+   off מקומית (כמו door/window .off), הרווח ביניהם, ומה מצב הקיר של השכן שפונה אלינו */
+function wallContacts(idx, localWall){
+  const m = canvas && canvas.modules[idx]; if(!m || !canvas) return [];
   const worldDir = worldDirFromLocal(localWall, m.rot||0);
-  const mb = moduleBBox(m), EPS=0.03;
-  const worldSegs=[];
+  const mb = moduleBBox(m), EPS=NEAR_EPS;
+  const rad=(m.rot||0)*Math.PI/180, cosv=Math.round(Math.cos(rad)), sinv=Math.round(Math.sin(rad));
+  const toLocalOff=(wx,wy)=>{ const ddx=wx-m.dx, ddy=wy-m.dy; const lx=ddx*cosv+ddy*sinv, ly=-ddx*sinv+ddy*cosv; return (localWall==='top'||localWall==='bottom') ? lx : ly; };
+  const out=[];
   canvas.modules.forEach((k,ki)=>{
     if(ki===idx) return;
     const kb=moduleBBox(k);
-    if(worldDir==='right' && Math.abs(mb.x1-kb.x0)<EPS){
-      const a=Math.max(mb.y0,kb.y0), b=Math.min(mb.y1,kb.y1);
-      if(b-a>EPS) worldSegs.push([[mb.x1,a],[mb.x1,b]]);
-    } else if(worldDir==='left' && Math.abs(mb.x0-kb.x1)<EPS){
-      const a=Math.max(mb.y0,kb.y0), b=Math.min(mb.y1,kb.y1);
-      if(b-a>EPS) worldSegs.push([[mb.x0,a],[mb.x0,b]]);
-    } else if(worldDir==='bottom' && Math.abs(mb.y1-kb.y0)<EPS){
-      const a=Math.max(mb.x0,kb.x0), b=Math.min(mb.x1,kb.x1);
-      if(b-a>EPS) worldSegs.push([[a,mb.y1],[b,mb.y1]]);
-    } else if(worldDir==='top' && Math.abs(mb.y0-kb.y1)<EPS){
-      const a=Math.max(mb.x0,kb.x0), b=Math.min(mb.x1,kb.x1);
-      if(b-a>EPS) worldSegs.push([[a,mb.y0],[b,mb.y0]]);
-    }
+    let p1=null,p2=null,gap=0;
+    if(worldDir==='right' && Math.abs(mb.x1-kb.x0)<EPS){ const a=Math.max(mb.y0,kb.y0), b=Math.min(mb.y1,kb.y1); if(b-a>EPS){ p1=[mb.x1,a]; p2=[mb.x1,b]; gap=kb.x0-mb.x1; } }
+    else if(worldDir==='left' && Math.abs(mb.x0-kb.x1)<EPS){ const a=Math.max(mb.y0,kb.y0), b=Math.min(mb.y1,kb.y1); if(b-a>EPS){ p1=[mb.x0,a]; p2=[mb.x0,b]; gap=mb.x0-kb.x1; } }
+    else if(worldDir==='bottom' && Math.abs(mb.y1-kb.y0)<EPS){ const a=Math.max(mb.x0,kb.x0), b=Math.min(mb.x1,kb.x1); if(b-a>EPS){ p1=[a,mb.y1]; p2=[b,mb.y1]; gap=kb.y0-mb.y1; } }
+    else if(worldDir==='top' && Math.abs(mb.y0-kb.y1)<EPS){ const a=Math.max(mb.x0,kb.x0), b=Math.min(mb.x1,kb.x1); if(b-a>EPS){ p1=[a,mb.y0]; p2=[b,mb.y0]; gap=mb.y0-kb.y1; } }
+    if(!p1) return;
+    const o1=toLocalOff(p1[0],p1[1]), o2=toLocalOff(p2[0],p2[1]);
+    const kWall = localSideFromWorldDir(OPPOSITE_WALL[worldDir], k.rot||0);
+    out.push({ki, a:Math.min(o1,o2), b:Math.max(o1,o2), gap:Math.max(0,gap), kWall, kOpen:!!(k.open&&k.open[kWall]), kMustStay:wallMustStay(k,kWall)});
   });
-  if(!worldSegs.length) return [[0,wallLen]];   /* דגל ידני בלי שכן גיאומטרי אמיתי — נשאר קיר שלם, כמו קודם */
-  const rad=(m.rot||0)*Math.PI/180, cosv=Math.round(Math.cos(rad)), sinv=Math.round(Math.sin(rad));
-  const toLocalOff = ([wx,wy])=>{
-    const ddx=wx-m.dx, ddy=wy-m.dy;
-    const lx=ddx*cosv+ddy*sinv, ly=-ddx*sinv+ddy*cosv;
-    return (localWall==='top'||localWall==='bottom') ? lx : ly;
-  };
-  return worldSegs.map(([p1,p2])=>{
-    const o1=toLocalOff(p1), o2=toLocalOff(p2);
-    return [Math.min(o1,o2), Math.max(o1,o2)];
-  }).sort((a,b)=>a[0]-b[0]);
+  return out.sort((p,q)=>p.a-q.a);
+}
+function mergeSegs(segs){
+  /* ממזג קטעים חופפים/צמודים; קטע = [a, b, kind, ...] -- מתמזגים רק קטעים מאותו סוג (kind), השדות הנוספים נשמרים מהראשון */
+  const srt=segs.map(x=>x.slice()).sort((a,b)=>a[0]-b[0]);
+  const out=[];
+  srt.forEach(sg=>{ const last=out[out.length-1]; if(last && (last[2]||'open')===(sg[2]||'open') && sg[0]<=last[1]+0.02){ last[1]=Math.max(last[1],sg[1]); } else out.push(sg); });
+  return out;
+}
+/* דגל m.open[wall] מסמן קיר כ"פתוח בגלל חיבור", אבל כשלמבנה השכן מידות שונות מהמבנה
+   הנוכחי רק חלק מהקיר נוגע בפועל בשכן -- לא כולו. moduleOpenSegments מחשבת את קטעי-ההשקה
+   האמיתיים (בקואורדינטת off מקומית) כדי שמחיקת הקיר תוגבל לחלק שבאמת מחובר.
+   דוד (2026-09-20): "בסקיצה נראה כאילו יש קיר עליון במבנה 1 -- אף על פי שלא ציינתי בכלל קיר".
+   הוא סימן את הקיר המשותף כפתוח פעם אחת (מצד מבנה 3), ומצפה שהחיבור ייחשב פתוח משני
+   הצדדים. לכן: הממשק בין שני מבנים צמודים נחשב פתוח אם *אחד* מהם סימן אותו פתוח --
+   אלא אם הקיר של הצד השני חייב להישאר (ממ"ד, או שיש בו דלת/חלון/אביזר -- ואז זה הקיר
+   שמפריד, עם הפתח שבו). זה חל גם על המסך וגם על ה-PDF, כדי שהם לא יסתרו זה את זה. */
+function moduleOpenSegments(idx, localWall){
+  const m = canvas && canvas.modules[idx];
+  if(!m) return [];
+  const wallLen = (localWall==='top'||localWall==='bottom') ? m.data.L : m.data.W;
+  const own = !!(m.open && m.open[localWall]);
+  if(!canvas || canvas.modules.length<2) return own ? [[0,wallLen,'open']] : [];
+  const contacts = wallContacts(idx, localWall);
+  const canInherit = !wallMustStay(m, localWall);
+  /* דוד (2026-09-20): "הקיר הימני-עליון של מבנה 1 מסומן בשחור וזה לא נכון -- זה בכלל הקיר של הממ"ד".
+     מבנה רגיל שצמוד לממ"ד לא בונה קיר משלו מול קיר הממ"ד -- קיר הממ"ד (20/30 ס"מ) הוא הגבול.
+     קטע כזה מסומן kind='mamad' (נמחק מהקיר של המבנה, ובייצוא מצויר במקומו פס כתום של קיר השכן
+     + כיתוב), להבדיל מ-'open' = פתח מעבר אמיתי (קו מקווקו). שני ממ"דים צמודים -- כל אחד שומר את הקיר שלו. */
+  const selfMamad = !!m.data.mamad;
+  const isMamadNb = c => !selfMamad && !!(canvas.modules[c.ki].data && canvas.modules[c.ki].data.mamad);
+  const mamadSegs = contacts.filter(isMamadNb).map(c=>[c.a,c.b,'mamad',(canvas.modules[c.ki].data.mamadThick||0.3),c.ki]);
+  const openSegs = contacts.filter(c=>!isMamadNb(c) && (own || (c.kOpen && canInherit))).map(c=>[c.a,c.b,'open']);
+  if(!openSegs.length && !mamadSegs.length) return own ? [[0,wallLen,'open']] : [];   /* דגל ידני בלי שכן גיאומטרי אמיתי -- כל הקיר פתוח, כמו קודם */
+  const all=[...mergeSegs(openSegs), ...mergeSegs(mamadSegs)].sort((p,q)=>p[0]-q[0]);
+  /* שארית קיר זעירה (עד NEAR_EPS) בין שני קטעים -- למשל 10 ס"מ בין פתח המעבר לקיר הממ"ד, כשהשכנים
+     לא צמודים במדויק -- נבלעת, כדי שלא יישאר "גדם" של קיר שנראה כמו שבר */
+  for(let i=0;i<all.length-1;i++){ if(all[i+1][0]-all[i][1]>0 && all[i+1][0]-all[i][1]<=NEAR_EPS) all[i][1]=all[i+1][0]; }
+  if(all.length && all[0][0]>0 && all[0][0]<=NEAR_EPS) all[0][0]=0;
+  if(all.length && wallLen-all[all.length-1][1]>0 && wallLen-all[all.length-1][1]<=NEAR_EPS) all[all.length-1][1]=wallLen;
+  return all;
 }
 function wallTouchesNeighbor(idx, localWall){
   const m = canvas && canvas.modules[idx]; if(!m) return false;
   const worldDir = worldDirFromLocal(localWall, m.rot||0);
-  const mb = moduleBBox(m), EPS=0.03;
+  const mb = moduleBBox(m), EPS=NEAR_EPS;
   return canvas.modules.some((k,ki)=>{
     if(ki===idx) return false;
     const kb = moduleBBox(k);
@@ -1103,7 +1139,7 @@ function neighborIdxForWall(idx, localWall){
      לציין בעמוד ה-PDF הבודד של כל מבנה בדיוק לאיזה מבנה שכן קיר פתוח מתחבר. */
   const m = canvas && canvas.modules[idx]; if(!m) return -1;
   const worldDir = worldDirFromLocal(localWall, m.rot||0);
-  const mb = moduleBBox(m), EPS=0.03;
+  const mb = moduleBBox(m), EPS=NEAR_EPS;
   for(let ki=0; ki<canvas.modules.length; ki++){
     if(ki===idx) continue;
     const kb = moduleBBox(canvas.modules[ki]);
@@ -1138,6 +1174,43 @@ function wallEraseRects(wall, segs, t, L, W){
       out += `<rect x="${f3(x)}" y="${f3(y0)}" width="${f3(t+0.06)}" height="${f3(y1-y0)}" fill="#fff"/>`;
     }
   });
+  return out;
+}
+/* מחיקת כל הקירות הפתוחים של מבנה בבת אחת, כולל הפינות: כשגם הקיר הסמוך פתוח באותה פינה,
+   ריבוע הפינה נמחק גם הוא (דוד: "חלק שבור" בפינה השמאלית-תחתונה של מבנה 3 -- שני ריבועים
+   קטנים שנשארו מקירות שנמחקו). כשהקיר הסמוך סגור, הפינה שייכת לו ונשארת. */
+function wallEraseRectsAll(segs, t, L, W){
+  if(!segs) return '';
+  const E=0.02;
+  const reaches=(arr,val)=>!!arr && arr.some(([a,b])=>a<=val+E && b>=val-E);
+  const cTL=reaches(segs.top,0)&&reaches(segs.left,0), cTR=reaches(segs.top,L)&&reaches(segs.right,0);
+  const cBL=reaches(segs.bottom,0)&&reaches(segs.left,W), cBR=reaches(segs.bottom,L)&&reaches(segs.right,W);
+  const rect=(x,y,w,h)=> (w>0&&h>0) ? `<rect x="${f3(x)}" y="${f3(y)}" width="${f3(w)}" height="${f3(h)}" fill="#fff"/>` : '';
+  let out='';
+  (segs.top||[]).forEach(([a,b])=>{ const x0=(a<=E&&cTL)?-0.03:Math.max(t,a), x1=(b>=L-E&&cTR)?L+0.03:Math.min(L-t,b); out+=rect(x0,-0.03,x1-x0,t+0.06); });
+  (segs.bottom||[]).forEach(([a,b])=>{ const x0=(a<=E&&cBL)?-0.03:Math.max(t,a), x1=(b>=L-E&&cBR)?L+0.03:Math.min(L-t,b); out+=rect(x0,W-t-0.03,x1-x0,t+0.06); });
+  (segs.left||[]).forEach(([a,b])=>{ const y0=(a<=E&&cTL)?-0.03:Math.max(t,a), y1=(b>=W-E&&cBL)?W+0.03:Math.min(W-t,b); out+=rect(-0.03,y0,t+0.06,y1-y0); });
+  (segs.right||[]).forEach(([a,b])=>{ const y0=(a<=E&&cTR)?-0.03:Math.max(t,a), y1=(b>=W-E&&cBR)?W+0.03:Math.min(W-t,b); out+=rect(L-t-0.03,y0,t+0.06,y1-y0); });
+  return out;
+}
+/* דוד: "קו קו קו עדין ושקוף רק להמחשה של האזור הריק (הקירות)" -- קו מקווקו אפור-בהיר לאורך
+   ציר הקיר בכל קטע פתוח, כדי שיהיה ברור שזה פתח חיבור ולא שרטוט שנחתך. רק בייצוא. */
+function openWallDashes(segs, t, L, W){
+  if(!segs) return '';
+  const dash=(x1,y1,x2,y2)=> (Math.hypot(x2-x1,y2-y1)>0.05) ? `<line x1="${f3(x1)}" y1="${f3(y1)}" x2="${f3(x2)}" y2="${f3(y2)}" stroke="#94a3b8" stroke-width="0.03" stroke-dasharray="0.14 0.1" stroke-linecap="round"/>` : '';
+  let out='';
+  const isOpen=sg=>(sg[2]||'open')==='open';
+  (segs.top||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(a,t/2,b,t/2); });
+  (segs.bottom||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(a,W-t/2,b,W-t/2); });
+  (segs.left||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(t/2,a,t/2,b); });
+  (segs.right||[]).filter(isOpen).forEach(([a,b])=>{ out+=dash(L-t/2,a,L-t/2,b); });
+  /* קיר ממ"ד של מבנה צמוד -- פס כתום שקוף-למחצה מחוץ למתאר, בדיוק במקום שבו הקיר של השכן נמצא */
+  const band=(x,y,w,h)=> (w>0.02&&h>0.02) ? `<rect x="${f3(x)}" y="${f3(y)}" width="${f3(w)}" height="${f3(h)}" fill="#b45309" fill-opacity="0.5" stroke="#b45309" stroke-width="0.012"/>` : '';
+  const isMamad=sg=>sg[2]==='mamad';
+  (segs.top||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(a,-(thk||0.3),b-a,thk||0.3); });
+  (segs.bottom||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(a,W,b-a,thk||0.3); });
+  (segs.left||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(-(thk||0.3),a,thk||0.3,b-a); });
+  (segs.right||[]).filter(isMamad).forEach(([a,b,k,thk])=>{ out+=band(L,a,thk||0.3,b-a); });
   return out;
 }
 function segOverlaps(segs,a,b){ return !!segs && segs.some(([s,e])=>Math.min(b,e)-Math.max(a,s)>1e-6); }
@@ -1242,17 +1315,17 @@ function renderCombined(opts){
   frags.forEach(({m,fr}, idx)=>{
     const t=fr.t;
     const segs=computeOpenSegments(idx);
-    const openRects=wallEraseRects('top',segs.top,t,fr.L,fr.W)+wallEraseRects('bottom',segs.bottom,t,fr.L,fr.W)+
-                     wallEraseRects('left',segs.left,t,fr.L,fr.W)+wallEraseRects('right',segs.right,t,fr.L,fr.W);
+    const openRects=wallEraseRectsAll(segs,t,fr.L,fr.W)+openWallDashes(segs,t,fr.L,fr.W);
     /* דוד ביקש תוכנית ברורה למבצע, שגם תואמת למה שהוא רואה על המסך בזמן העריכה: משתמשים
        ב-m.name (עכשיו תמיד ייחודי בזכות nextModuleName, ראו למעלה) ולא במיקום במערך --
        כי מספור לפי מיקום היה יכול להציג כאן "מבנה 3" לפוקוס מבנה שהכרטיס שלו על המסך
        עדיין קורא לו "מבנה 4" (למשל אחרי מחיקת מבנה מהאמצע), מה שהיה מבלבל את דוד עצמו
        כשהוא צריך להצליב בין המסך לתוכנית המודפסת. מוסיפים גם את מידות המבנה ישירות
        במקרא, כדי שגם התצוגה הכללית תענה על "מה אורך/רוחב של המבנה" בלי לפתוח עמוד נפרד. */
-    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר';
+    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר'+(m.data.mamad? '  ·  ממ״ד (קירות '+cm(m.data.mamadThick||0.3)+' ס״מ, בכתום)':'');
     legend.push(nameTxt);
-    const isActive = !!canvas && canvas.active===idx;
+    /* עמוד מודפס -- בלי מסגרת "המבנה הפעיל" של העורך (הייתה מודפסת ככחול מקווקו ובלבלה) */
+    const isActive = false;
     const activeHi = isActive ? `<rect x="${f3(-0.05)}" y="${f3(-0.05)}" width="${f3(fr.L+0.1)}" height="${f3(fr.W+0.1)}" fill="none" stroke="#2563eb" stroke-width="0.06" stroke-dasharray="0.18 0.12" pointer-events="none"/>` : '';
     body+=`<g class="combModGrp" data-mod-idx="${idx}" style="cursor:pointer" transform="translate(${f3(m.dx)} ${f3(m.dy)}) rotate(${m.rot||0})">${fr.S}${openRects}${activeHi}</g>`;
   });
@@ -1281,6 +1354,13 @@ function renderCombined(opts){
   const y0b = y0-titleH;
   const headerBody = `<text x="${f3(x1-0.3)}" y="${f3(y0b+0.42*tk2)}" font-size="${f3(0.5*tk2)}" font-weight="700" fill="#111" text-anchor="end">${titleTxt}</text>`+
     subLines.map((ln2,i)=>`<text x="${f3(x1-0.3)}" y="${f3(y0b+(0.78+0.34*i)*tk2)}" font-size="${f3(subFs)}" fill="#555" text-anchor="end">${esc(ln2)}</text>`).join('');
+  /* שם כל מבנה בתוך השרטוט עצמו (בפינה השמאלית-עליונה שלו), כדי שעמוד 1 ייקרא ישירות */
+  canvas.modules.forEach((m,idx)=>{
+    const bb=moduleBBox(m);
+    const fsN=Math.min(0.34*tk2, (bb.x1-bb.x0)*0.8/(Math.max(3,m.name.length)*0.55), (bb.y1-bb.y0)*0.5);
+    if(fsN<0.12) return;
+    body += `<text x="${f3(bb.x1-0.3)}" y="${f3(bb.y0+fsN+0.25)}" font-size="${f3(fsN)}" font-weight="700" fill="#1e3a8a" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="${f3(fsN*0.28)}">${esc(m.name)}</text>`;
+  });
   let legendBody='';
   if(legend.length){
     legendBody += `<rect x="${f3(x0)}" y="${f3(y1t)}" width="${f3(x1-x0)}" height="${f3(legendH)}" fill="#f8fafc" stroke="#e2e8f0" stroke-width="0.02"/>`;
@@ -1336,7 +1416,7 @@ function renderCombinedIso(){
   const raw=canvas.modules.map(m=>{ const bb=moduleBBox(m); return {m, x0:bb.x0, y0:bb.y0, x1:bb.x1, y1:bb.y1, H:m.data.H||2.5}; });
   const XminR=Math.min(...raw.map(b=>b.x0)), XmaxR=Math.max(...raw.map(b=>b.x1));
   const YminR=Math.min(...raw.map(b=>b.y0)), YmaxR=Math.max(...raw.map(b=>b.y1));
-  const eps=0.02;
+  const eps=NEAR_EPS+0.01;
   const rotPt=(m,x,y)=>{ const a=(m.rot||0)*Math.PI/180, c=Math.round(Math.cos(a)), sn=Math.round(Math.sin(a)); return [m.dx + x*c - y*sn, m.dy + x*sn + y*c]; };
   /* קטע קיר מקומי (wall, off, w) -> על איזה פאה עולמית של הקופסה הוא יושב ובאיזה טווח */
   const segOf=(b, T, wall, off, w)=>{
@@ -1365,11 +1445,40 @@ function renderCombinedIso(){
   });
   const flip = backCnt>frontCnt;
   const T = flip ? (x,y)=>[XminR+XmaxR-x, YminR+YmaxR-y] : ident;
-  const boxes=raw.map(b=>{
+  let boxes=raw.map(b=>{
     const p=T(b.x0,b.y0), q=T(b.x1,b.y1);
     b.t={x0:Math.min(p[0],q[0]), y0:Math.min(p[1],q[1]), x1:Math.max(p[0],q[0]), y1:Math.max(p[1],q[1])};
     return b;
-  }).sort((A,B)=>(0.42*A.t.x0+A.t.y0)-(0.42*B.t.x0+B.t.y0));
+  });
+  /* רווחים זעירים (עד NEAR_EPS) בין מבנים נסגרים בהדמיה בלבד -- אחרת נשאר פס דק של קיר "פנימי"
+     שנראה כמו שבר (בסקיצה הדו-ממדית הרווח האמיתי נשאר כפי שצויר). */
+  const yOv=(A,B)=>A.t.y0<B.t.y1-0.02 && B.t.y0<A.t.y1-0.02, xOv=(A,B)=>A.t.x0<B.t.x1-0.02 && B.t.x0<A.t.x1-0.02;
+  boxes.forEach(A=>boxes.forEach(B=>{
+    if(A===B) return;
+    if(yOv(A,B) && B.t.x0-A.t.x1>0 && B.t.x0-A.t.x1<=NEAR_EPS) A.t.x1=B.t.x0;
+    if(xOv(A,B) && B.t.y0-A.t.y1>0 && B.t.y0-A.t.y1<=NEAR_EPS) A.t.y1=B.t.y0;
+  }));
+  /* סדר ציור נכון (מהרחוק לקרוב) לפי כיוון המבט של ההטלה (0.42, 1, 0.30): מבנה A נצבע לפני B אם
+     A משמאל ל-B בטווח y חופף, או A מאחורי B בטווח x חופף, או שניהם. המיון הקודם לפי מפתח
+     פינה (0.42*x0+y0) נכשל כשמבנה קדמי ארוך מאוד "עקף" מבנה אחורי קצר -- וזה בדיוק ה"שבר"
+     שדוד ראה בין מבנה 2 למבנה 3. מיון טופולוגי; במקרה (נדיר) של מעגל -- נופלים למפתח הישן. */
+  const mustPrecede=(A,B)=>{
+    const e=0.03;
+    const leftOf=A.t.x1<=B.t.x0+e, behindOf=A.t.y1<=B.t.y0+e;
+    return (leftOf && yOv(A,B)) || (behindOf && xOv(A,B)) || (leftOf && behindOf);
+  };
+  {
+    const n=boxes.length, indeg=new Array(n).fill(0), adj=boxes.map(()=>[]);
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){ if(i!==j && mustPrecede(boxes[i],boxes[j]) && !mustPrecede(boxes[j],boxes[i])){ adj[i].push(j); indeg[j]++; } }
+    const order=[], q=[]; for(let i=0;i<n;i++) if(indeg[i]===0) q.push(i);
+    while(q.length){ q.sort((a,b)=>(0.42*boxes[a].t.x0+boxes[a].t.y0)-(0.42*boxes[b].t.x0+boxes[b].t.y0)); const i=q.shift(); order.push(i); adj[i].forEach(j=>{ if(--indeg[j]===0) q.push(j); }); }
+    boxes = order.length===n ? order.map(i=>boxes[i]) : boxes.slice().sort((A,B)=>(0.42*A.t.x0+A.t.y0)-(0.42*B.t.x0+B.t.y0));
+  }
+  /* פאה שמכוסה לחלוטין על ידי מבנה צמוד (קיר משותף) לא מצוירת כלל -- כדי שלא יישאר ממנה פס */
+  boxes.forEach(b=>{
+    b.hideRight = boxes.some(o=>o!==b && Math.abs(o.t.x0-b.t.x1)<=0.03 && o.t.y0<=b.t.y0+0.03 && o.t.y1>=b.t.y1-0.03);
+    b.hideFront = boxes.some(o=>o!==b && Math.abs(o.t.y0-b.t.y1)<=0.03 && o.t.x0<=b.t.x0+0.03 && o.t.x1>=b.t.x1-0.03);
+  });
   const Xmin=XminR, Ymin=YminR, Ymax=YmaxR;
   const Hmax=Math.max(...boxes.map(b=>b.H));
   const totW=(XmaxR-XminR)+(Ymax-Ymin)*dxF;
@@ -1387,10 +1496,10 @@ function renderCombinedIso(){
     const t=b.t, H=b.H, d=b.m.data, dF=Ymax-t.y1;
     const F=(X,z)=>[ f3(X-Xmin+dF*dxF), f3(yB - z - dF*dyF) ];   /* נקודה על פאת החזית של הקופסה הזו */
     I += poly([P(t.x0,t.y1,H),P(t.x1,t.y1,H),P(t.x1,t.y0,H),P(t.x0,t.y0,H)],'url(#gRoof)','#5b6570',0.028);
-    I += poly([P(t.x1,t.y1,0),P(t.x1,t.y0,0),P(t.x1,t.y0,H),P(t.x1,t.y1,H)],'url(#gWallS)','#5b6570',0.028);
-    I += poly([P(t.x0,t.y1,0),P(t.x1,t.y1,0),P(t.x1,t.y1,H),P(t.x0,t.y1,H)],'url(#gWallF)','#5b6570',0.028);
-    for(let sx=t.x0+1.15; sx<t.x1-0.05; sx+=1.15){ const a=F(sx,H), c=F(sx,0); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#ddd6c8" stroke-width="0.014"/>`; }
-    for(let sy=t.y1-1.15; sy>t.y0+0.05; sy-=1.15){ const a=P(t.x1,sy,0), c=P(t.x1,sy,H); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#c7c0b2" stroke-width="0.014"/>`; }
+    if(!b.hideRight) I += poly([P(t.x1,t.y1,0),P(t.x1,t.y0,0),P(t.x1,t.y0,H),P(t.x1,t.y1,H)],'url(#gWallS)','#5b6570',0.028);
+    if(!b.hideFront) I += poly([P(t.x0,t.y1,0),P(t.x1,t.y1,0),P(t.x1,t.y1,H),P(t.x0,t.y1,H)],'url(#gWallF)','#5b6570',0.028);
+    if(!b.hideFront) for(let sx=t.x0+1.15; sx<t.x1-0.05; sx+=1.15){ const a=F(sx,H), c=F(sx,0); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#ddd6c8" stroke-width="0.014"/>`; }
+    if(!b.hideRight) for(let sy=t.y1-1.15; sy>t.y0+0.05; sy-=1.15){ const a=P(t.x1,sy,0), c=P(t.x1,sy,H); I += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#c7c0b2" stroke-width="0.014"/>`; }
     /* חלונות */
     (d.wins||[]).forEach(wn=>{
       const sg=segOf(b,T,wn.wall,wn.off,wn.w||1); if(!sg) return;
@@ -1516,8 +1625,7 @@ function renderModuleGallery(){
     const fr = withModuleState(m, ()=>render(true,true));
     const t2=fr.t, pad=0.15;
     const segs=computeOpenSegments(idx);
-    const openRects=wallEraseRects('top',segs.top,t2,fr.L,fr.W)+wallEraseRects('bottom',segs.bottom,t2,fr.L,fr.W)+
-                     wallEraseRects('left',segs.left,t2,fr.L,fr.W)+wallEraseRects('right',segs.right,t2,fr.L,fr.W);
+    const openRects=wallEraseRectsAll(segs,t2,fr.L,fr.W);
     const isActive = canvas.active===idx;
     const vb=`${f3(-pad)} ${f3(-pad)} ${f3(fr.L+pad*2)} ${f3(fr.W+pad*2)}`;
     const bg=`<rect x="${f3(-pad)}" y="${f3(-pad)}" width="${f3(fr.L+pad*2)}" height="${f3(fr.W+pad*2)}" fill="#fff"/>`;
@@ -1544,8 +1652,7 @@ function siblingModuleGroups(activeIdx){
     const t2=fr.t;
     const rel=worldToLocal(am.dx, am.dy, aRot, m.dx, m.dy, m.rot||0);
     const segs2=computeOpenSegments(idx);
-    const openRects=wallEraseRects('top',segs2.top,t2,fr.L,fr.W)+wallEraseRects('bottom',segs2.bottom,t2,fr.L,fr.W)+
-                     wallEraseRects('left',segs2.left,t2,fr.L,fr.W)+wallEraseRects('right',segs2.right,t2,fr.L,fr.W);
+    const openRects=wallEraseRectsAll(segs2,t2,fr.L,fr.W);
     const nameTxt=`${esc(m.name)}${m.rel? ' ('+(REL_HE[m.rel]||'')+')':''}`;
     legend.push(nameTxt);
     /* מלבן שקוף (כמעט 0 אטימות, לא fill:none) שמכסה את כל שטח המבנה השכן — כדי שהלחיצה
@@ -2136,7 +2243,7 @@ function combinedOrderItems(includeProducts){
    מתחת לשרטוט של אותו מבנה בלבד. orderItems()/combinedOrderItems() עצמן לא שונו בהתנהגות
    ברירת-המחדל (ההסכם והמסך ממשיכים לקבל בדיוק את מה שקיבלו). ===== */
 const SPEC_CATS=[
-  {label:'מבנה, שלד וגימור', test:/פאנל|1225|שילד|גבס|פרקט|קרמיקה|שליכט/},
+  {label:'מבנה, שלד וגימור', test:/פאנל|1225|שילד|גבס|פרקט|קרמיקה|שליכט|ממ״ד/},
   {label:'אינסטלציה, מטבח ואמבטיה', test:/מים|דוד|ביוב|שירותים|אסלה|כיור|מקלחון|אמבטיה|מטבח|קיסר|דוש|ברז|חיפוי/},
   {label:'חלונות, דלתות ומחיצות', test:/חלו|דלת|מחיצ/},
   {label:'חשמל, מיזוג ותקשורת', test:/שקע|מזג|מנוע|הכנ|חשמל|תאור|טלוויזיה/}
@@ -2201,6 +2308,7 @@ function combinedGeneralChoices(){
 /* מה שמצויר בסקיצה של המבנה הנוכחי בלבד -- עם ציון הקיר לדלתות/מזגנים, חדרים מסומנים והערות */
 function moduleDrawnItems(){
   const out=orderItems(false,{drawnOnly:true, pointed:true});
+  if(state.mamad) out.unshift('ממ״ד — כל קירות המעטפת בעובי '+cm(state.mamadThick||0.3)+' ס״מ (מסומנים בכתום בסקיצה)');
   const rooms=(state.rooms||[]).map(r=>String(r.name||'').trim()).filter(Boolean);
   if(rooms.length) out.push('חדרים מסומנים בסקיצה: '+rooms.join(', '));
   (state.notes||[]).map(n=>String(n.text||'').trim()).filter(Boolean).forEach(n=>out.push('הערה בסקיצה: '+n));
@@ -4258,6 +4366,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
      renderCombined withGeneral) -- ובמקומו כותרת ממוקדת-מבנה למעלה ופירוט המבנה למטה. */
   const multiExp = !!forExport && !fragmentOnly && !!canvas && canvas.modules.length>1;
   const hdrExtra = multiExp ? 0.38 : 0;
+  let hdrNeedW=0;
   /* עמוד ההדמיות של כל מבנה מקבל גם הוא את שם המבנה בכותרת -- אחרת עמוד הדמיה בודד בתוך PDF של כמה מבנים לא מזוהה */
   const modTitleSuffix = (multiExp && curModuleLabel) ? ' \u2014 '+esc(curModuleLabel) : '';
   const specGroups=groupSpecItems([...finishItems(), ...combinedOrderItems(), ...freeAd.map(esc)]);
@@ -4292,8 +4401,11 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const nmT=esc(curModuleLabel), nMods=canvas.modules.length;
     const ttl = /^מבנה \d+$/.test(curModuleLabel) ? nmT+' מתוך '+nMods : nmT+' (מבנה '+(modIdxT+1)+' מתוך '+nMods+')';
     D += rtlText(L,-1.82-hdrExtra,ttl,f3(0.46*tk),'#111','700');
-    D += rtlText(L,-1.44-hdrExtra,`רוחב ${fmt(W)} מ׳ × אורך ${fmt(L)} מ׳ · ${(L*W).toFixed(1)} מ״ר · משקל משוער ${weightTonsStr()}`,f3(0.3*tk),'#333','600');
-    D += rtlText(L,-1.44,'תוכנית: '+esc(state.planName||'סקיצת מבנה')+(state.bizName? ' · '+esc(state.bizName):'')+' · '+dateStr,f3(0.23*tk),'#777');
+    const dimsTxt=`רוחב ${fmt(W)} מ׳ × אורך ${fmt(L)} מ׳ · ${(L*W).toFixed(1)} מ״ר · משקל משוער ${weightTonsStr()}`;
+    const ctxTxt='תוכנית: '+esc(state.planName||'סקיצת מבנה')+(state.bizName? ' · '+esc(state.bizName):'')+' · '+dateStr;
+    D += rtlText(L,-1.44-hdrExtra,dimsTxt,f3(0.3*tk),'#333','600');
+    D += rtlText(L,-1.44,ctxTxt,f3(0.23*tk),'#777');
+    hdrNeedW=Math.max(0.55*0.46*tk*ttl.length, 0.55*0.3*tk*dimsTxt.length, 0.55*0.23*tk*ctxTxt.length)+0.4;
   } else {
     D += rtlText(L,-1.82,(curModuleLabel?curModuleLabel+' — ':'')+esc(state.planName||'סקיצת מבנה'),f3(0.46*tk),'#111','700');
     const sub=(state.bizName? esc(state.bizName)+' · ':'')+
@@ -4338,26 +4450,49 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
      כאן מוסיפים גם הסבר טקסטואלי לאיזה קיר ולאיזה מבנה שכן, כדי שלמבצע לא יהיה
      ספק. מוצג רק בייצוא (forExport), לא בעריכה על המסך -- זו בקשה שממוקדת בפלט
      המודפס/PDF בלבד. */
-  let openLegendH=0;
+  let openLegendH=0, textNeedW=0;
+  const estW=(str,fs)=>0.55*fs*String(str).length+0.5;   /* אומדן רוחב טקסט עברי (מטרים) -- להרחבת העמוד כשהמבנה צר */
   if(forExport && canvas && canvas.modules.length>1){
     const curIdx=canvas.modules.findIndex(mm=>mm.data===state);
     if(curIdx>=0){
       const wallLblR={top:'עליון', bottom:'תחתון', left:'שמאלי', right:'ימני'};
       const openRows=[];
       WALL_CYCLE.forEach(side=>{
-        if(openFlags[side] && openFlags[side].length){
-          const nb=neighborIdxForWall(curIdx, side);
-          openRows.push('קיר '+wallLblR[side]+' — פתח חיבור'+(nb>=0 && canvas.modules[nb]? ' אל '+esc(canvas.modules[nb].name) : ''));
-        }
+        const segsS=openFlags[side]; if(!segsS || !segsS.length) return;
+        const wallLen=(side==='top'||side==='bottom')?L:W;
+        const contacts=wallContacts(curIdx, side);
+        segsS.forEach(([a,b,kind,thk,kiM])=>{
+          const full = a<=0.02 && b>=wallLen-0.02;
+          const touching=contacts.filter(c=>Math.min(b,c.b)-Math.max(a,c.a)>0.02);
+          const where = full ? 'לכל האורך' : 'מ-'+fmt(a)+' עד '+fmt(b)+' מ׳ (נמדד מהקצה '+((side==='top'||side==='bottom')?'השמאלי':'העליון')+')';
+          if(kind==='mamad'){
+            const nbM=canvas.modules[kiM], cM=touching.find(c=>c.ki===kiM);
+            const hasDoor=!!(nbM && cM && (nbM.data.doors||[]).some(d=>d.wall===cM.kWall));
+            openRows.push('קיר '+wallLblR[side]+' — '+where+': אין כאן קיר של '+(curModuleLabel||canvas.modules[curIdx].name)+' — הגבול הוא קיר הממ״ד של '+(nbM?nbM.name:'')+' ('+cm(thk||0.3)+' ס״מ, מסומן בכתום'+(hasDoor?', עם דלת':'')+(cM&&cM.gap>0.03?', רווח '+cm(cM.gap)+' ס״מ':'')+')');
+            return;
+          }
+          let txt='קיר '+wallLblR[side]+' — '+(full ? 'פתוח לכל האורך' : 'פתוח '+where);
+          if(touching.length){
+            txt+=' · חיבור אל '+touching.map(c=>canvas.modules[c.ki].name+(c.gap>0.03?' (רווח '+cm(c.gap)+' ס״מ)':'')).join(' ו-');
+            const stay=touching.filter(c=>c.kMustStay);
+            if(stay.length) txt+=' — הקיר של '+stay.map(c=>canvas.modules[c.ki].name).join(', ')+' נשאר במקומו ('+(canvas.modules[stay[0].ki].data.mamad?'ממ״ד':'יש בו דלת/חלון/אביזר')+')';
+          } else txt+=' (לא צמוד למבנה אחר)';
+          openRows.push(txt);
+        });
       });
       if(openRows.length){
         const oy0=W+1.55+legendH;
-        D += `<text x="${f3(L)}" y="${f3(oy0)}" font-size="0.27" font-weight="700" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">קירות פתוחים (חיבור בין מבנים):</text>`;
+        const capHdr='חיבורים למבנים צמודים:';
+        const capKey='מקווקו = פתח מעבר · כתום = קיר ממ״ד של המבנה השכן';
+        D += `<text x="${f3(L)}" y="${f3(oy0)}" font-size="0.27" font-weight="700" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">${capHdr}</text>`;
+        D += `<text x="${f3(L)}" y="${f3(oy0+0.34)}" font-size="0.2" fill="#78716c" text-anchor="start" direction="rtl" style="direction:rtl">${capKey}</text>`;
+        textNeedW=Math.max(textNeedW, estW(capHdr,0.27), estW(capKey,0.2));
         openRows.forEach((txt,i)=>{
-          const y=oy0+0.46+i*0.38;
+          const y=oy0+0.78+i*0.38;
           D += `<text x="${f3(L-0.17)}" y="${f3(y)}" font-size="0.235" fill="#b45309" text-anchor="start" direction="rtl" style="direction:rtl">${esc(txt)}</text>`;
+          textNeedW=Math.max(textNeedW, estW(txt,0.235)+0.17);
         });
-        openLegendH=0.75+openRows.length*0.38;
+        openLegendH=1.07+openRows.length*0.38;
       }
     }
   }
@@ -4376,9 +4511,35 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     D += `<text x="${f3(L)}" y="${f3(dy0)}" font-size="0.27" font-weight="700" fill="#111" text-anchor="start" direction="rtl" style="direction:rtl">פירוט ${dnm} — מה שמופיע בסקיצה למעלה:</text>`;
     if(dRows.length) D += specRowsSvg(dRows, L, dy0+0.46, 0.36, 0.235);
     else D += `<text x="${f3(L)}" y="${f3(dy0+0.46)}" font-size="0.235" fill="#666" text-anchor="start" direction="rtl" style="direction:rtl">מבנה בסיסי לפי המידות שלמעלה — ללא פריטים נוספים מסומנים בסקיצה</text>`;
+    textNeedW=Math.max(textNeedW, estW('פירוט '+(curModuleLabel||'')+' — מה שמופיע בסקיצה למעלה:',0.27));
+    dRows.forEach(r=>{ textNeedW=Math.max(textNeedW, estW((r.label? r.label+':  ':'')+r.items.join('  ·  '),0.235)+0.3); });
     detailsH=0.75+Math.max(dRows.length,1)*0.36;
   }
   legendH += detailsH;
+  /* "מיקום המבנה במערך הכולל" -- תוכנית-מפתח קטנה: כל המבנים כמלבנים, המבנה הנוכחי מודגש.
+     כך כל עמוד עומד בפני עצמו: רואים מיד איזה מבנה זה ואיפה הוא יושב בתוך השלם. */
+  let keyH=0;
+  if(multiExp){
+    const bbs=canvas.modules.map(mm=>moduleBBox(mm));
+    const kx0=Math.min(...bbs.map(b=>b.x0)), kx1=Math.max(...bbs.map(b=>b.x1)), ky0=Math.min(...bbs.map(b=>b.y0)), ky1=Math.max(...bbs.map(b=>b.y1));
+    const bw=Math.max(0.1,kx1-kx0), bh=Math.max(0.1,ky1-ky0);
+    const insW=Math.min(Math.max(L,3.5), 7), insH=1.7;
+    const sK=Math.min(insW/bw, insH/bh);
+    const drawW=bw*sK, drawH=bh*sK;
+    const kTop=W+1.55+legendH;
+    const ox=L-drawW, oy=kTop+0.32;
+    D += `<text x="${f3(L)}" y="${f3(kTop)}" font-size="0.27" font-weight="700" fill="#111" text-anchor="start" direction="rtl" style="direction:rtl">מיקום המבנה במערך הכולל:</text>`;
+    bbs.forEach((b,i)=>{
+      const isCur=(i===modIdxT);
+      const x=ox+(b.x0-kx0)*sK, y=oy+(b.y0-ky0)*sK, w=(b.x1-b.x0)*sK, h=(b.y1-b.y0)*sK;
+      D += `<rect x="${f3(x)}" y="${f3(y)}" width="${f3(w)}" height="${f3(h)}" fill="${isCur?'#bfdbfe':'#f1f5f9'}" stroke="${isCur?'#1d4ed8':'#94a3b8'}" stroke-width="${isCur?0.035:0.02}"/>`;
+      const nm=canvas.modules[i].name;
+      const fsK=Math.min(0.22, w*0.85/(Math.max(2,nm.length)*0.55), h*0.55);
+      if(fsK>=0.09) D += `<text x="${f3(x+w/2)}" y="${f3(y+h/2+fsK*0.35)}" font-size="${f3(fsK)}" font-weight="${isCur?'700':'400'}" fill="${isCur?'#1e3a8a':'#475569'}" text-anchor="middle">${esc(nm)}</text>`;
+    });
+    keyH=0.32+drawH+0.4;
+  }
+  legendH += keyH;
   const extraH=legendH;
   let R='';   /* \u05EA\u05D5\u05DB\u05DF \u05D4\u05D4\u05D3\u05DE\u05D9\u05D5\u05EA (\u05D0\u05D9\u05D6\u05D5\u05DE\u05D8\u05E8\u05D9 + \u05E4\u05E0\u05D9\u05DD) \u2014 \u05DE\u05E6\u05D8\u05D1\u05E8 \u05DB\u05D0\u05DF \u05D1\u05E0\u05E4\u05E8\u05D3 \u05DE-D \u05DB\u05E9\u05DE\u05D9\u05D9\u05E6\u05D0\u05D9\u05DD \u05DC\u05E2\u05DE\u05D5\u05D3 \u05E0\u05E4\u05E8\u05D3 */
   const rendersTop = W+1.5+extraH;
@@ -5012,6 +5173,9 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
      (ראו siblingModuleGroups) והמסגרת מתרחבת כדי להכיל את כולם יחד, כך שאין יותר סקיצה
      כפולה (מוצג משולב למעלה + מבנה בודד למטה) — הכל באותה סקיצה אחת. */
   let vbX0=-1.55, vbY0=-2.4-adTop-hdrExtra, vbX1=mainW-1.55, vbY1=mainH-2.4-adTop-hdrExtra, siblingsMarkup='', ownOpenRects='', activeHi='';
+  /* מבנה צר (למשל ממ"ד 3 מ'): בלוקי הטקסט מיושרים לימין (x=L) וגולשים שמאלה מעבר לעמוד --
+     נבדק בפועל בעמוד "מבנה 5 מתוך 5" של דוד (הטקסט נחתך). מרחיבים את העמוד שמאלה לפי הצורך. */
+  if(multiExp){ const need=Math.max(textNeedW, hdrNeedW); if(need>0) vbX0=Math.min(vbX0, L-need-0.25); }
   if(canvas && canvas.modules.length>1){
     /* קיר "פתוח" של המבנה המצוייר עצמו: openFlags (מחושב למעלה דרך activeOpenFlags) כבר
        משקף נכון גם מבנה שאינו הפעיל, כשמציירים אותו דרך curModuleOpen (renderCombined/
@@ -5021,8 +5185,8 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
        גם מתקנים כאן שימוש שגוי ב-computeOpenSegments(canvas.active||0) (תמיד המבנה שנבחר
        אחרון על המסך, לא המבנה שבאמת מצוייר כרגע בלולאת הייצוא) ל-openFlags הנכון. */
     const ownSegs=openFlags;
-    ownOpenRects+=wallEraseRects('top',ownSegs.top,t,L,W)+wallEraseRects('bottom',ownSegs.bottom,t,L,W)+
-                  wallEraseRects('left',ownSegs.left,t,L,W)+wallEraseRects('right',ownSegs.right,t,L,W);
+    ownOpenRects+=wallEraseRectsAll(ownSegs,t,L,W);
+    if(forExport) ownOpenRects+=openWallDashes(ownSegs,t,L,W);
     if(!forExport){
       const sib=siblingModuleGroups(canvas.active||0);
       siblingsMarkup=sib.g;
