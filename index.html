@@ -2823,12 +2823,13 @@ function rebuildSocks(){
   $('sockList').innerHTML=(state.socks||[]).map(sockRow).join('') ||
     '<div class="hint">\u05D0\u05D9\u05DF \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05D7\u05E9\u05DE\u05DC \u2014 \u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05D5\u05E1\u05DE\u05E0\u05D5 \u05D0\u05EA \u05DE\u05D9\u05E7\u05D5\u05DE\u05DF.</div>';
 }
-const WATER_KINDS={manifold:'\u05D7\u05E0\u05D5\u05DB\u05D9\u05D9\u05EA \u05DE\u05D9\u05DD', point:'\u05E0\u05E7\u05D5\u05D3\u05EA \u05DE\u05D9\u05DD', boiler:'\u05D3\u05D5\u05D3 \u05D7\u05E9\u05DE\u05DC\u05D9 30 \u05DC\u05D9\u05D8\u05E8', boilerPrep:'\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3 (\u05D1\u05DC\u05D9 \u05D3\u05D5\u05D3)'};
+const WATER_KINDS={manifold:'\u05D7\u05E0\u05D5\u05DB\u05D9\u05D9\u05EA \u05DE\u05D9\u05DD', point:'\u05E0\u05E7\u05D5\u05D3\u05EA \u05DE\u05D9\u05DD', boiler:'\u05D3\u05D5\u05D3 \u05D7\u05E9\u05DE\u05DC\u05D9', boilerPrep:'\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3 (\u05D1\u05DC\u05D9 \u05D3\u05D5\u05D3)'};
 function waterRow(wt,i){
   /* \u05D3\u05D5\u05D3/\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3 \u2014 \u05D0\u05E4\u05E9\u05E8\u05D9 \u05E2\u05DC \u05DB\u05DC \u05D0\u05E8\u05D1\u05E2\u05EA \u05D4\u05E7\u05D9\u05E8\u05D5\u05EA, \u05DB\u05DE\u05D5 \u05E9\u05D0\u05E8 \u05D4\u05E4\u05E8\u05D9\u05D8\u05D9\u05DD */
   const opts=Object.keys(WALL_HE).map(w=>`<option value="${w}" ${wt.wall===w?'selected':''}>${WALL_HE[w]}</option>`).join('');
   const kopts=Object.keys(WATER_KINDS).map(k=>`<option value="${k}" ${(wt.kind||'point')===k?'selected':''}>${WATER_KINDS[k]}</option>`).join('');
   const neg=isH(wt.wall)?'\u25C0':'\u25B2', pos=isH(wt.wall)?'\u25B6':'\u25BC';
+  const litersBox=(wt.kind==='boiler')?`<span class="sl">\u05DC\u05D9\u05D8\u05E8</span><input type="number" class="c-liters" min="10" max="500" step="5" value="${wt.liters||30}" style="width:64px">`:'';
   const shabbatBox=(wt.kind==='boiler')?`<label class="sl" style="display:flex;align-items:center;gap:4px"><input type="checkbox" class="c-shabbat" ${wt.shabbat?'checked':''}> \u05E9\u05E2\u05D5\u05DF \u05E9\u05D1\u05EA</label>`:'';
   return `<div class="item" data-list="waters" data-i="${i}">
     <select class="c-kind">${kopts}</select>
@@ -2836,6 +2837,7 @@ function waterRow(wt,i){
     <span class="sl">\u05DE\u05D9\u05E7\u05D5\u05DD</span><input type="number" class="c-off" step="0.05" value="${wt.off}">
     <button class="ab" data-act="neg">${neg}</button>
     <button class="ab" data-act="pos">${pos}</button>
+    ${litersBox}
     ${shabbatBox}
     <button class="del" data-act="del">\u2715</button>
   </div>`;
@@ -3028,6 +3030,7 @@ function bindPanel(){
       if(e.target.classList.contains('c-type')) it.type=e.target.value;
       if(e.target.classList.contains('c-material')) it.material=e.target.value;
       if(e.target.classList.contains('c-shabbat')) it.shabbat=e.target.checked;
+      if(e.target.classList.contains('c-liters')){ const v=parseFloat(e.target.value); it.liters=(v>0)?Math.round(v):30; }
       if(e.target.classList.contains('c-prep')) it.prepOnly=e.target.checked;
       clampAll(); RB[list](); render();
     });
