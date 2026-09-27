@@ -4167,9 +4167,22 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       const flush=()=>{
         if(grp.length>1){
           const ord=grp.slice().sort((a,b)=>rank(ws[a])-rank(ws[b]) || a-b);   /* bottom -> top */
-          const c=grp.reduce((sum,i)=>sum+ws[i].off,0)/grp.length, n=ord.length;
+          const c=grp.reduce((sum,i)=>sum+ws[i].off,0)/grp.length;
           const txt=ord.slice().reverse().map(i=>shortName(ws[i])).join(' \u05DE\u05E2\u05DC ');
-          ord.forEach((i,k)=>{ res[i]={dx:(k-(n-1)/2)*0.5, off:c, text:txt, owner:k===0}; });
+          /* side-by-side positions (symbols drawn at 75%), packed with a small gap */
+          const hw=w=>({manifold:0.26, boiler:0.19, boilerPrep:0.19}[w.kind]||0.055)*0.75;
+          const pos=[]; ord.forEach((i,k)=>{ pos.push(k ? pos[k-1]+hw(ws[ord[k-1]])+hw(ws[i])+0.08 : 0); });
+          let lo=pos[0]-hw(ws[ord[0]]), hi=pos[pos.length-1]+hw(ws[ord[ord.length-1]]);
+          let shift=c-(lo+hi)/2;
+          /* keep the whole group inside the wall span (never past a corner) */
+          const wl=(wall==='top'||wall==='bottom')?L:W, eMin=t+0.03, eMax=wl-t-0.03;
+          if(lo+shift<eMin) shift=eMin-lo; else if(hi+shift>eMax) shift=eMax-hi;
+          lo+=shift; hi+=shift;
+          /* label centered on the drawn group, also kept inside the wall */
+          const tw=txt.length*0.105+0.16;
+          let lc=(lo+hi)/2;
+          if(wl>tw) lc=Math.min(Math.max(lc,tw/2),wl-tw/2);
+          ord.forEach((i,k)=>{ res[i]={dx:pos[k]+shift-ws[i].off, off:lc, text:txt, owner:k===0}; });
         }
         grp=[];
       };
