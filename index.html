@@ -427,7 +427,7 @@
         <label><input type="checkbox" id="adParquet"> &#x5E4;&#x5E8;&#x5E7;&#x5D8; SPC</label>
         <label><input type="checkbox" id="adCeramic"> &#x5E7;&#x5E8;&#x5DE;&#x5D9;&#x5E7;&#x5D4;</label>
         <label><input type="checkbox" id="adShlicht"> &#x5E9;&#x5DC;&#x5D9;&#x5DB;&#x5D8; &#x5E6;&#x5D1;&#x5E2;&#x5D5;&#x5E0;&#x5D9;</label>
-        <label><input type="checkbox" id="adWheels"> &#x5D2;&#x5DC;&#x5D2;&#x5DC;&#x5D9;&#x5DD; &#x5DC;&#x5DE;&#x5D1;&#x5E0;&#x5D4;</label>
+        <label><input type="checkbox" id="adWheels"> &#x5D2;&#x5DC;&#x5D2;&#x5DC;&#x5D9;&#x5DD; &#x5DC;&#x5DE;&#x5D1;&#x5E0;&#x5D4; <select id="adWheelsN" title="&#x5DE;&#x5E1;&#x5E4;&#x5E8; &#x5D2;&#x5DC;&#x5D2;&#x5DC;&#x5D9;&#x5DD;" style="margin-inline-start:4px;padding:0 2px;font-size:12px;height:22px;width:42px"><option value="2">2</option><option value="4">4</option></select></label>
         <label><input type="checkbox" id="adConnElec"> &#x5D7;&#x5D9;&#x5D1;&#x5D5;&#x5E8; &#x5D7;&#x5E9;&#x5DE;&#x5DC; &#x5DC;&#x5D0;&#x5D7;&#x5E8; &#x5DE;&#x5E1;&#x5D9;&#x5E8;&#x5D4;</label>
         <label><input type="checkbox" id="adConnSewage"> &#x5D7;&#x5D9;&#x5D1;&#x5D5;&#x5E8; &#x5D1;&#x5D9;&#x5D5;&#x5D1; &#x5DC;&#x5D0;&#x5D7;&#x5E8; &#x5DE;&#x5E1;&#x5D9;&#x5E8;&#x5D4;</label>
         <label><input type="checkbox" id="adConnWater"> &#x5D7;&#x5D9;&#x5D1;&#x5D5;&#x5E8; &#x5DE;&#x5D9;&#x5DD; &#x5DC;&#x5D0;&#x5D7;&#x5E8; &#x5DE;&#x5E1;&#x5D9;&#x5E8;&#x5D4;</label>
@@ -2231,7 +2231,7 @@ function orderItems(includeProducts, opts){   /* opts: {drawnOnly, generalOnly, 
   }
   }
   if(!(opts&&opts.drawnOnly)){
-    if(state.addons && state.addons.wheels) out.push('\u05D2\u05DC\u05D2\u05DC\u05D9\u05DD \u05DC\u05DE\u05D1\u05E0\u05D4');
+    if(state.addons && state.addons.wheels) out.push((state.addons.wheelsN===4?4:2)+' \u05D2\u05DC\u05D2\u05DC\u05D9\u05DD \u05DC\u05DE\u05D1\u05E0\u05D4');
     if(state.towHook) out.push('\u05D5\u05D5 \u05D2\u05E8\u05D9\u05E8\u05D4 (10 \u05E1\u05F4\u05DE)');
   }
   if(includeProducts!==false) out.push(...productPickItems());
@@ -2377,7 +2377,7 @@ function calcWeightKg(){
   kg += (state.socks||[]).filter(s=>s.kind==='panel3').length*14;
   kg += (state.waters||[]).filter(w=>w.kind==='manifold').length*4;
   kg += (state.waters||[]).filter(w=>w.kind==='boiler').reduce((s,w)=>s+8+(w.liters||30)*0.15,0);
-  if(ad.wheels) kg += (area>15?220:120);
+  if(ad.wheels) kg += (area>15?220:120) * (ad.wheelsN===4?2:1);
   if(state.towHook) kg += 20;
   return kg;
 }
@@ -2467,6 +2467,8 @@ function syncInputs(){
   state.furn = state.furn || [];
   state.towHook = state.towHook || null;
   AD_PAIRS.forEach(([id,key])=>{ $(id).checked=!!state.addons[key]; });
+  $('adWheelsN').value = (state.addons && state.addons.wheelsN===4) ? '4' : '2';
+  $('adWheelsN').disabled = !(state.addons && state.addons.wheels);
   $('towShow').checked = !!state.towHook;
   $('towWall').value = state.towHook ? state.towHook.wall : 'left';
   $('towWall').disabled = !state.towHook;
@@ -3380,6 +3382,9 @@ function bindPanel(){
     if(key==='ceramic' && e.target.checked){ state.addons.parquet=false; $('adParquet').checked=false; }
     render();
   }));
+  /* wheels: 2 (default) or 4 */
+  $('adWheels').addEventListener('input', e=>{ $('adWheelsN').disabled = !e.target.checked; });
+  $('adWheelsN').addEventListener('input', e=>{ state.addons = state.addons || {}; state.addons.wheelsN = +e.target.value; render(); });
   $('towShow').addEventListener('input', e=>{
     if(e.target.checked){ state.towHook = state.towHook || {wall:'left', off:r2(state.W/2)}; }
     else { state.towHook = null; }
