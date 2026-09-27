@@ -315,7 +315,7 @@
           <span class="sl">&#x5E2;&#x5D5;&#x5DE;&#x5E7;</span><input type="number" id="bathShD" step="0.05" min="0.6" max="2">
         </div>
         <div class="frow">
-          <label><input type="checkbox" id="bathSnkWide"> הגדלת כיור ל-100×40 ס״מ (ברירת מחדל: 60×40)</label>
+          <label>אורך כיור: <input type="number" id="bathSnkLen" min="40" max="200" step="5" value="60" style="width:70px"> ס״מ (עומק קבוע 40 ס״מ)</label>
         </div>
         <div class="frow">
           <select id="bathDoorWall">
@@ -717,7 +717,7 @@ const EXAMPLE = {
   rooms:[ {name:'\u05DE\u05D2\u05D5\u05E8\u05D9\u05DD \u05D5\u05DE\u05D8\u05D1\u05D7', x:3.2, y:2.6}, {name:'\u05D7\u05D3\u05E8 \u05E9\u05D9\u05E0\u05D4', x:10.3, y:2.9} ],
   notes:[],
   customer:'', custId:'', phone:'', address:'', quoteNo:'', agreeNotes:'', meetPay:'', finalPrice:'', addonsFreeList:[],
-  bath:{show:true, attach:'top', x:7.55, w:1.5, d:1.4, flip:false, doorOff:0.06, arr:0, doorWall:'front', doorFlip:true, showerShape:'square', shW:0.8, shD:0.8, snkWide:false},
+  bath:{show:true, attach:'top', x:7.55, w:1.5, d:1.4, flip:false, doorOff:0.06, arr:0, doorWall:'front', doorFlip:true, showerShape:'square', shW:0.8, shD:0.8, snkLen:60},
   furn:[
     {type:'bedD', x:9.5, y:0.35, w:1.4, h:1.9, rot:0},
     {type:'closet', x:11.3, y:1.4, w:1.2, h:0.6, rot:90}
@@ -740,7 +740,7 @@ function cleanState(L,W,step){
     wins:[], parts:[], rooms:[], notes:[], cornerWins:[],
     customer:'', custId:'', phone:'', address:'', quoteNo:'', agreeNotes:'', meetPay:'', finalPrice:'', addonsFreeList:[],
     doors:[ {wall:'bottom', off:Math.round((L/2-0.45)*100)/100, w:0.9, hinge:'R', type:'swing', material:'pladelet'} ],
-    bath:{show:false, attach:'top', x:Math.max(t, L-t-1.5), w:1.5, d:1.4, flip:false, doorOff:0.06, arr:0, doorWall:'front', doorFlip:true, showerShape:'square', shW:0.8, shD:0.8, snkWide:false},
+    bath:{show:false, attach:'top', x:Math.max(t, L-t-1.5), w:1.5, d:1.4, flip:false, doorOff:0.06, arr:0, doorWall:'front', doorFlip:true, showerShape:'square', shW:0.8, shD:0.8, snkLen:60},
     furn:[],
     kitchen:{show:false, wall:'top', off:t, len:1.4, depth:0.6, legOn:false, legLen:0.9, legSide:'end', bathSide:'L'},
     acs:[], conds:[], socks:[], waters:[],
@@ -2445,7 +2445,7 @@ function syncInputs(){
   $('optProj').checked=!!state.projector;
   $('bathShower').value=b.showerShape||'square';
   $('bathShW').value=b.shW||0.8; $('bathShD').value=b.shD||0.8;
-  $('bathSnkWide').checked=!!b.snkWide;
+  $('bathSnkLen').value=(b.snkLen||(b.snkWide?100:60));
   const k=state.kitchen;
   $('kitShow').checked=k.show; $('kitWall').value=k.wall;
   $('kitOff').value=k.off; $('kitLen').value=k.len;
@@ -3319,7 +3319,7 @@ function bindPanel(){
   $('bathShower').addEventListener('change', e=>{ state.bath.showerShape=e.target.value; render(); });
   $('bathShW').addEventListener('change', e=>{ state.bath.shW=r2(clamp(+e.target.value||0.8,0.6,2)); lightChange(); syncInputs(); });
   $('bathShD').addEventListener('change', e=>{ state.bath.shD=r2(clamp(+e.target.value||0.8,0.6,2)); lightChange(); syncInputs(); });
-  $('bathSnkWide').addEventListener('input', e=>{ state.bath.snkWide=e.target.checked; lightChange(); flash(state.bath.snkWide ? 'כיור מוגדל ל-100×40 ס״מ' : 'כיור בגודל רגיל 60×40 ס״מ'); syncInputs(); });
+  $('bathSnkLen').addEventListener('input', e=>{ const v=parseFloat(e.target.value); if(!(v>=40&&v<=200)) return; state.bath.snkLen=v; lightChange(); });
   $('bathX').addEventListener('change', e=>{ state.bath.x=+e.target.value||state.bath.x; lightChange(); syncInputs(); });
   $('bathW').addEventListener('change', e=>{ const req=+e.target.value||state.bath.w; state.bath.w=req; lightChange(); if(Math.abs(state.bath.w-req)>0.005) flash('רוחב יחידת השירותים מוגבל ל-'+state.bath.w+' מ׳ לפי אורך הקיר'); syncInputs(); });
   $('bathD').addEventListener('change', e=>{ const req=+e.target.value||state.bath.d; state.bath.d=req; lightChange(); if(Math.abs(state.bath.d-req)>0.005) flash('עומק יחידת השירותים מוגבל ל-'+state.bath.d+' מ׳ לפי עומק המבנה בניכוי עובי הקירות'); syncInputs(); });
@@ -3801,7 +3801,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const sd2=Math.min(r2(clamp(b.shD||0.8,0.6,2)), Math.max(0.5, wy-0.08));
     const shs=sw2;
     const tw=0.36*sAll, thg=0.59*sAll;
-    const snW=(b.snkWide?1.0:0.6)*sAll, snH=0.4*sAll;
+    const snW=((b.snkLen||(b.snkWide?100:60))/100)*sAll, snH=0.4*sAll;
     const doorSide = freeSide==='L' ? 'R' : 'L';
     /* \u05E9\u05EA\u05D9 \u05E2\u05DE\u05D5\u05D3\u05D5\u05EA: \u05DE\u05E7\u05DC\u05D7\u05D5\u05DF (\u05D5\u05D4\u05D3\u05DC\u05EA \u05DC\u05E4\u05E0\u05D9\u05D5) \u05D1\u05E2\u05DE\u05D5\u05D3\u05D4 \u05D0\u05D7\u05EA, \u05D0\u05E1\u05DC\u05D4+\u05DB\u05D9\u05D5\u05E8 \u05D1\u05E9\u05E0\u05D9\u05D9\u05D4, \u05E2\u05DD \u05E9\u05D5\u05DC\u05D9\u05D9\u05DD \u05E9\u05D5\u05D5\u05D9\u05DD */
     const shSide = (b.arr||0)%2===0 ? freeSide : doorSide;
