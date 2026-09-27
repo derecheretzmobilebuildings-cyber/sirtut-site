@@ -1811,7 +1811,13 @@ function clampAll(){
   (state.waters||[]).forEach(wt=>{
     const wl=wallLen(wt.wall), r1=waterRadius(wt);
     const arr = placedWater[wt.wall] || (placedWater[wt.wall]=[]);
-    const zones = arr.map(p=>[p.off-(r1+p.r), p.off+(r1+p.r)]).sort((a,b)=>a[0]-b[0]);
+    /* stacking: a boiler hangs high on the wall and a manifold / water point sits low, so they do not
+       collide physically. When one is placed on (or dragged close to) the other they snap to the exact
+       same point = installed one above the other. Items at the same height are still kept apart. */
+    const hi = (wt.kind==='boiler'||wt.kind==='boilerPrep');
+    const partner = arr.find(p=>p.hi!==hi && Math.abs(p.off-wt.off) < r1+p.r);
+    if(partner) wt.off = partner.off;
+    const zones = arr.filter(p=>p.hi===hi).map(p=>[p.off-(r1+p.r), p.off+(r1+p.r)]).sort((a,b)=>a[0]-b[0]);
     const merged=[];
     zones.forEach(z=>{
       const last=merged[merged.length-1];
@@ -1826,7 +1832,7 @@ function clampAll(){
       if(cand!==undefined) wt.off=cand;
       /* אחרת: הקיר קצר מדי מכדי להפריד יותר — משאירים כפי שהוא (מקרה קצה נדיר)*/
     }
-    arr.push({off:wt.off, r:r1});
+    arr.push({off:wt.off, r:r1, hi});
   });
   const k=state.kitchen;
   k.depth = 0.6;   /* \u05E2\u05D5\u05DE\u05E7 \u05DE\u05D8\u05D1\u05D7\u05D5\u05DF \u05E7\u05D1\u05D5\u05E2 */
@@ -4148,6 +4154,35 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   });
 
   /* \u05DE\u05D9\u05DD \u05D5\u05D0\u05D9\u05E0\u05E1\u05D8\u05DC\u05E6\u05D9\u05D4 \u2014 \u05EA\u05DE\u05D9\u05D3 \u05DE\u05D7\u05D5\u05E5 \u05DC\u05DE\u05D1\u05E0\u05D4 */
+  /* stacked water items: several items at the same point on the same wall are installed one above
+     the other (boiler on top, manifold / water point below). In the plan they are drawn side by side
+     with a dashed leader to the shared point, and one label states the vertical order. */
+  const wStack=(()=>{
+    const res={}, ws=state.waters||[];
+    const rank=w=>((w.kind==='boiler'||w.kind==='boilerPrep')?1:0);
+    const shortName=w=>({boiler:'\u05D3\u05D5\u05D3', boilerPrep:'\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3', manifold:'\u05D7\u05E0\u05D5\u05DB\u05D9\u05D9\u05D4'}[w.kind]||'\u05E0\u05E7\u05F3 \u05DE\u05D9\u05DD');
+    ['top','bottom','left','right'].forEach(wall=>{
+      const idx=ws.map((w,i)=>i).filter(i=>ws[i].wall===wall).sort((a,b)=>ws[a].off-ws[b].off);
+      let grp=[];
+      const flush=()=>{
+        if(grp.length>1){
+          const ord=grp.slice().sort((a,b)=>rank(ws[a])-rank(ws[b]) || a-b);   /* bottom -> top */
+          const c=grp.reduce((sum,i)=>sum+ws[i].off,0)/grp.length, n=ord.length;
+          const txt=ord.slice().reverse().map(i=>shortName(ws[i])).join(' \u05DE\u05E2\u05DC ');
+          ord.forEach((i,k)=>{ res[i]={dx:(k-(n-1)/2)*0.5, off:c, text:txt, owner:k===0}; });
+        }
+        grp=[];
+      };
+      idx.forEach(i=>{ if(grp.length && ws[i].off-ws[grp[grp.length-1]].off>0.05) flush(); grp.push(i); });
+      flush();
+    });
+    return res;
+  })();
+  const wLbl=(wi,wall,off,dO,txt,fill)=>{
+    const st=wStack[wi];
+    if(!st) return wallLabel(wall,off,dO,txt,fill);
+    return st.owner ? wallLabel(wall,st.off,dO,st.text,fill) : '';
+  };
   (state.waters||[]).forEach((wt,wi2)=>{
     const kind=wt.kind||'point';
     let s='';
@@ -4158,25 +4193,29 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
         s += `<circle cx="${f3(dx3)}" cy="${f3(-t-0.09)}" r="0.035" fill="#fff" stroke="#1d4ed8" stroke-width="0.02"/>`;
       });
       s += line(0,-t-0.3,0,-t-0.38,.026,'#1d4ed8')+line(0,-t-0.02,0,0,.02,'#1d4ed8');
-      D += wallLabel(wt.wall, wt.off, 0.56, '\u05D7\u05E0\u05D5\u05DB\u05D9\u05D9\u05EA \u05DE\u05D9\u05DD', '#1d4ed8');
+      D += wLbl(wi2, wt.wall, wt.off, 0.56, '\u05D7\u05E0\u05D5\u05DB\u05D9\u05D9\u05EA \u05DE\u05D9\u05DD', '#1d4ed8');
     } else if(kind==='boiler'){
       /* \u05D3\u05D5\u05D3 \u05D7\u05E9\u05DE\u05DC\u05D9 \u2014 \u05D2\u05DC\u05D9\u05DC \u05E6\u05DE\u05D5\u05D3 \u05DC\u05E7\u05D9\u05E8 \u05DE\u05D1\u05D7\u05D5\u05E5 */
       s += `<circle cx="0" cy="${f3(-t-0.26)}" r="0.19" fill="#fff" stroke="#1d4ed8" stroke-width="0.026"/>`;
       s += `<circle cx="0" cy="${f3(-t-0.26)}" r="0.055" fill="none" stroke="#1d4ed8" stroke-width="0.018"/>`;
       s += line(-0.08,-t-0.05,-0.08,0,.02,'#1d4ed8')+line(0.08,-t-0.05,0.08,0,.02,'#1d4ed8');
-      D += wallLabel(wt.wall, wt.off, 0.62, '\u05D3\u05D5\u05D3 '+(wt.liters||30)+' \u05DC\u05F3', '#1d4ed8');
+      D += wLbl(wi2, wt.wall, wt.off, 0.62, '\u05D3\u05D5\u05D3 '+(wt.liters||30)+' \u05DC\u05F3', '#1d4ed8');
     } else if(kind==='boilerPrep'){
       /* \u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3 \u2014 \u05DE\u05EA\u05D0\u05E8 \u05DE\u05E7\u05D5\u05D5\u05E7\u05D5 \u05E9\u05DC \u05D3\u05D5\u05D3 \u05E2\u05EA\u05D9\u05D3\u05D9 + \u05D7\u05D9\u05D1\u05D5\u05E8\u05D9 \u05DE\u05D9\u05DD */
       s += `<circle cx="0" cy="${f3(-t-0.26)}" r="0.19" fill="none" stroke="#1d4ed8" stroke-width="0.022" stroke-dasharray="0.07 0.05"/>`;
       s += line(-0.08,-t-0.05,-0.08,0,.02,'#1d4ed8')+line(0.08,-t-0.05,0.08,0,.02,'#1d4ed8');
       s += `<circle cx="-0.08" cy="${f3(-t-0.07)}" r="0.03" fill="#1d4ed8"/>`;
       s += `<circle cx="0.08" cy="${f3(-t-0.07)}" r="0.03" fill="#1d4ed8"/>`;
-      D += wallLabel(wt.wall, wt.off, 0.62, '\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3', '#1d4ed8');
+      D += wLbl(wi2, wt.wall, wt.off, 0.62, '\u05D4\u05DB\u05E0\u05D4 \u05DC\u05D3\u05D5\u05D3', '#1d4ed8');
     } else {
       s += `<circle cx="0" cy="${f3(-t-0.13)}" r="0.055" fill="#fff" stroke="#1d4ed8" stroke-width="0.024"/>`;
       s += `<circle cx="0" cy="${f3(-t-0.13)}" r="0.018" fill="#1d4ed8"/>`;
       s += line(0,-t-0.075,0,0,.022,'#1d4ed8');
-      D += wallLabel(wt.wall, wt.off, 0.36, '\u05E0\u05E7\u05F3 \u05DE\u05D9\u05DD', '#1d4ed8');
+      D += wLbl(wi2, wt.wall, wt.off, 0.36, '\u05E0\u05E7\u05F3 \u05DE\u05D9\u05DD', '#1d4ed8');
+    }
+    const stk=wStack[wi2];
+    if(stk && Math.abs(stk.dx)>0.001){
+      s = line(0,-t,stk.dx,-t-0.05,.014,'#1d4ed8').replace('/>',' stroke-dasharray="0.04 0.03"/>') + `<g transform="translate(${f3(stk.dx)} 0) scale(0.75)">${s}</g>`;
     }
     S += `<g data-drag="water:${wi2}" transform="${onWall(wt.wall, wt.off)}">${s}</g>`;
   });
