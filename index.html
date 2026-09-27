@@ -2207,6 +2207,8 @@ function orderItems(includeProducts, opts){   /* opts: {drawnOnly, generalOnly, 
   const sks=state.socks||[];
   const nS=sks.filter(s=>(s.kind||'sock')==='sock').length;
   if(nS) out.push(nS===1?'\u05E9\u05E7\u05E2 \u05D7\u05E9\u05DE\u05DC':nS+' \u05E9\u05E7\u05E2\u05D9 \u05D7\u05E9\u05DE\u05DC');
+  const nS2=sks.filter(s=>s.kind==='sock2').length;
+  if(nS2) out.push(nS2===1?'\u05E9\u05E7\u05E2 \u05DB\u05E4\u05D5\u05DC':nS2+' \u05E9\u05E7\u05E2\u05D9\u05DD \u05DB\u05E4\u05D5\u05DC\u05D9\u05DD');
   if(sks.some(s=>s.kind==='panel1')) out.push('\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05D7\u05D3\u05BE\u05E4\u05D0\u05D6\u05D9'+(sks.some(s=>s.kind==='panel1'&&s.shabbat)?' + \u05E9\u05E2\u05D5\u05DF \u05E9\u05D1\u05EA':''));
   if(sks.some(s=>s.kind==='panel3')) out.push('\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05EA\u05DC\u05EA\u05BE\u05E4\u05D0\u05D6\u05D9'+(sks.some(s=>s.kind==='panel3'&&s.shabbat)?' + \u05E9\u05E2\u05D5\u05DF \u05E9\u05D1\u05EA':''));
   const nTv=sks.filter(s=>s.kind==='tv').length;
@@ -2766,7 +2768,7 @@ function rebuildConds(){
   $('condList').innerHTML=(state.conds||[]).map(condRow).join('') ||
     '<div class="hint">\u05D0\u05D9\u05DF \u05DE\u05E0\u05D5\u05E2\u05D9\u05DD \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9\u05D9\u05DD.</div>';
 }
-const SOCK_KINDS={sock:'\u05E9\u05E7\u05E2 \u05D7\u05E9\u05DE\u05DC', panel1:'\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05D7\u05D3\u05BE\u05E4\u05D0\u05D6\u05D9', panel3:'\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05EA\u05DC\u05EA\u05BE\u05E4\u05D0\u05D6\u05D9', tv:'\u05D7\u05D9\u05D1\u05D5\u05E8 \u05D8\u05DC\u05D5\u05D5\u05D9\u05D6\u05D9\u05D4', ext:'\u05D7\u05D9\u05D1\u05D5\u05E8 \u05D7\u05E9\u05DE\u05DC \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9', light:'\u05EA\u05D0\u05D5\u05E8\u05EA \u05D7\u05D5\u05E5 (Up/Down)'};
+const SOCK_KINDS={sock:'\u05E9\u05E7\u05E2 \u05D7\u05E9\u05DE\u05DC', sock2:'\u05E9\u05E7\u05E2 \u05DB\u05E4\u05D5\u05DC', panel1:'\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05D7\u05D3\u05BE\u05E4\u05D0\u05D6\u05D9', panel3:'\u05D0\u05E8\u05D5\u05DF \u05D7\u05E9\u05DE\u05DC \u05EA\u05DC\u05EA\u05BE\u05E4\u05D0\u05D6\u05D9', tv:'\u05D7\u05D9\u05D1\u05D5\u05E8 \u05D8\u05DC\u05D5\u05D5\u05D9\u05D6\u05D9\u05D4', ext:'\u05D7\u05D9\u05D1\u05D5\u05E8 \u05D7\u05E9\u05DE\u05DC \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9', light:'\u05EA\u05D0\u05D5\u05E8\u05EA \u05D7\u05D5\u05E5 (Up/Down)'};
 /* \u05E9\u05E7\u05E2 \u05E2\u05DC "\u05E7\u05D9\u05E8 \u05D4\u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD" (sk.wall==='bath') \u05EA\u05DE\u05D9\u05D3 \u05E2\u05D5\u05E7\u05D1 \u05D0\u05D7\u05E8\u05D9 \u05D4\u05E6\u05D3 \u05E9\u05D1\u05D5 \u05D0\u05E8\u05D5\u05DF \u05D4\u05DE\u05D8\u05D1\u05D7 \u05E0\u05DE\u05E6\u05D0 \u05D1\u05E4\u05D5\u05E2\u05DC,
    \u05DB\u05D3\u05D9 \u05E9\u05D1\u05D7\u05D9\u05E8\u05EA \u05D4\u05D0\u05D5\u05E4\u05E6\u05D9\u05D4 \u05D4\u05D6\u05D5 \u05EA\u05DE\u05D9\u05D3 \u05EA\u05DE\u05E7\u05DD \u05D0\u05EA \u05D4\u05E9\u05E7\u05E2 \u05DE\u05DE\u05E9 \u05D1\u05D0\u05D6\u05D5\u05E8 \u05D4\u05DE\u05D8\u05D1\u05D7, \u05DC\u05D0 \u05E8\u05E7 \u05E2\u05DC \u05D4\u05E7\u05D9\u05E8 \u05D4\u05E7\u05D3\u05DE\u05D9 \u05D4\u05E7\u05D1\u05D5\u05E2.
    \u05E7\u05D5\u05E8\u05D0 \u05DC-kitRect() \u05E2\u05E6\u05DE\u05D5 (\u05DC\u05D0 \u05DC-state.kitchen.bathSide \u05D4\u05D2\u05D5\u05DC\u05DE\u05D9) \u05D1\u05DB\u05D5\u05D5\u05E0\u05D4: \u05DB\u05E9\u05D4\u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD \u05E7\u05E8\u05D5\u05D1\u05D9\u05DD
@@ -3376,16 +3378,6 @@ function bindPanel(){
     /* \u05E4\u05E8\u05E7\u05D8 \u05D5\u05E7\u05E8\u05DE\u05D9\u05E7\u05D4 \u2014 \u05D0\u05D5 \u05D6\u05D4 \u05D0\u05D5 \u05D6\u05D4, \u05DC\u05D0 \u05E9\u05E0\u05D9\u05D4\u05DD */
     if(key==='parquet' && e.target.checked){ state.addons.ceramic=false; $('adCeramic').checked=false; }
     if(key==='ceramic' && e.target.checked){ state.addons.parquet=false; $('adParquet').checked=false; }
-    /* \u05E9\u05DC\u05D9\u05DB\u05D8 \u05E6\u05D1\u05E2\u05D5\u05E0\u05D9 \u2014 \u05E8\u05E7 \u05DB\u05E9\u05D2\u05D1\u05E1 \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9 \u05DE\u05E1\u05D5\u05DE\u05DF */
-    if(key==='shlicht' && e.target.checked && !state.addons.gibsOut){
-      state.addons.shlicht=false; e.target.checked=false;
-      flash('\u05E9\u05DC\u05D9\u05DB\u05D8 \u05E6\u05D1\u05E2\u05D5\u05E0\u05D9 \u05D0\u05E4\u05E9\u05E8\u05D9 \u05E8\u05E7 \u05E2\u05DD \u05D2\u05D1\u05E1 \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9 \u2014 \u05E1\u05DE\u05E0\u05D5 \u05E7\u05D5\u05D3\u05DD \u05D2\u05D1\u05E1 \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9');
-      return;
-    }
-    if(key==='gibsOut' && !e.target.checked && state.addons.shlicht){
-      state.addons.shlicht=false; $('adShlicht').checked=false;
-      flash('\u05E9\u05DC\u05D9\u05DB\u05D8 \u05E6\u05D1\u05E2\u05D5\u05E0\u05D9 \u05D9\u05E8\u05D3 \u2014 \u05D4\u05D5\u05D0 \u05D3\u05D5\u05E8\u05E9 \u05D2\u05D1\u05E1 \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9');
-    }
     render();
   }));
   $('towShow').addEventListener('input', e=>{
@@ -4093,7 +4085,14 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   (state.socks||[]).forEach((sk,si)=>{
     const r=0.085, kind=sk.kind||'sock';
     let s='';
-    if(kind==='sock'){
+    if(kind==='sock2'){   /* שקע כפול — שני סמלי שקע צמודים */
+      const r2=0.07, dx2=0.075;
+      [-dx2,dx2].forEach(cx2=>{
+        s += `<path d="M ${f3(cx2-r2)} 0 A ${f3(r2)} ${f3(r2)} 0 0 0 ${f3(cx2+r2)} 0" fill="#fff" stroke="#111" stroke-width="0.022"/>`;
+        s += line(cx2,r2,cx2,r2+0.07,.022,'#111');
+      });
+      s += line(-dx2-r2,0,dx2+r2,0,.022,'#111');
+    } else if(kind==='sock'){
       s = `<path d="M ${f3(-r)} 0 A ${f3(r)} ${f3(r)} 0 0 0 ${f3(r)} 0" fill="#fff" stroke="#111" stroke-width="0.022"/>`;
       s += line(-r,0,r,0,.022,'#111');
       s += line(0,r,0,r+0.08,.022,'#111');
@@ -4865,6 +4864,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       if(kd==='ext'||kd==='light') return;   /* \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u05D7\u05D9\u05E6\u05D5\u05E0\u05D9\u05D9\u05DD \u2014 \u05DC\u05D0 \u05D1\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05D4\u05E4\u05E0\u05D9\u05DD */
       if(sk.wall!=='top'&&sk.wall!=='left') return;
       if(kd==='panel1'||kd==='panel3') G += standPanel(sk.wall,sk.off,kd);
+      else if(kd==='sock2') G += standSock(sk.wall,sk.off-0.08)+standSock(sk.wall,sk.off+0.08);
       else G += standSock(sk.wall,sk.off);
     });
     G += '__INT_ITEMS__';
@@ -4901,7 +4901,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       (state.socks||[]).forEach(sk=>{
         if(sk.wall!=='part') return;
         const x = (sk.side==='L') ? p0.x-ti/2-0.1 : p0.x+ti/2;
-        push(p0.x, sk.off, prismZ(x, sk.off-0.06, 0.1, 0.12, hPart, hPart+0.13, '#fff','#e7eaee','#fff','#4b5563',0.012));
+        push(p0.x, sk.off, prismZ(x, sk.off-(sk.kind==='sock2'?0.13:0.06), 0.1, (sk.kind==='sock2'?0.26:0.12), hPart, hPart+0.13, '#fff','#e7eaee','#fff','#4b5563',0.012));
       });
     }
 
@@ -5141,7 +5141,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       const kd=sk.kind||'sock';
       if(kd==='ext'||kd==='light') return;
       const isPanel=(kd==='panel1'||kd==='panel3');
-      const pw3=isPanel?0.34:0.12, po3=isPanel?0.17:0.06, ph3=isPanel?0.3:0.13;
+      const pw3=isPanel?0.34:(kd==='sock2'?0.26:0.12), po3=isPanel?0.17:(kd==='sock2'?0.13:0.06), ph3=isPanel?0.3:0.13;
       const pfill=isPanel?'#f4f5f6':'#fff', pstroke=isPanel?'#3f4750':'#4b5563';
       if(sk.wall==='bottom') G += prismZ(sk.off-po3,W-t,pw3,t,hStub,hStub+ph3,pfill,'#e7eaee',pfill,pstroke,0.012);
       if(sk.wall==='right')  G += prismZ(L-t,sk.off-po3,t,pw3,hStub,hStub+ph3,pfill,'#e7eaee',pfill,pstroke,0.012);
@@ -5196,7 +5196,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   }
 
   /* \u05E9\u05D5\u05DC\u05D9\u05D9\u05DD \u05E0\u05D5\u05E1\u05E4\u05D9\u05DD \u05DE\u05D9\u05DE\u05D9\u05DF \u05DB\u05E9\u05D9\u05E9 \u05EA\u05D5\u05D5\u05D9\u05D5\u05EA \u05D7\u05E9\u05DE\u05DC/\u05DE\u05D9\u05DD \u05E2\u05DC \u05D4\u05E7\u05D9\u05E8 \u05D4\u05D9\u05DE\u05E0\u05D9 */
-  const extraR = ([...(state.waters||[]), ...(state.socks||[])].some(o=>o.wall==='right' && o.kind && o.kind!=='sock')) ? 0.8 : 0;
+  const extraR = ([...(state.waters||[]), ...(state.socks||[])].some(o=>o.wall==='right' && o.kind && o.kind!=='sock' && o.kind!=='sock2')) ? 0.8 : 0;
   const mainW = L+2.0+extraR+(splitRenders? 0 : isoExtraW);
   const mainH = W+3.75+adTop+hdrExtra+extraH+(splitRenders? 0 : isoExtraH+intExtraH);
   /* מבנים מחוברים בסקיצה הראשית על המסך (לא ביצוא): המבנה הפעיל עצמו (S+D, כל נקודות
