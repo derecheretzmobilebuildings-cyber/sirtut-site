@@ -480,7 +480,7 @@
       <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
         <input type="checkbox" id="optDims"> &#x5D4;&#x5E6;&#x5D2; &#x5E7;&#x5D5;&#x5D5;&#x5D9; &#x5DE;&#x5D9;&#x5D3;&#x5D4;
       </label>
-      <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
+      <label style="font-size:13px;display:none;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
         <input type="checkbox" id="optIso"> &#x5D4;&#x5D3;&#x5DE;&#x5D9;&#x5D9;&#x5EA; &#x5DE;&#x5D1;&#x5E0;&#x5D4; (&#x5EA;&#x5DC;&#x5EA;&#x5BE;&#x5DE;&#x5DE;&#x5D3;) &#x2014; &#x5E8;&#x5E7; &#x5D1;&#x5D9;&#x5D9;&#x5E6;&#x5D5;&#x5D0; PDF/PNG
       </label>
       <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
@@ -5117,7 +5117,7 @@ notchesOf().forEach((n,ni)=>{
   const rendersTop = W+1.5+extraH;
 
   /* ===== \u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05DE\u05D1\u05E0\u05D4 \u2014 \u05D0\u05E7\u05E1\u05D5\u05E0\u05D5\u05DE\u05D8\u05E8\u05D9\u05D4 \u05DE\u05D5\u05E6\u05DC\u05DC\u05EA (\u05E8\u05E7 \u05D1\u05D9\u05D9\u05E6\u05D5\u05D0) ===== */
-  const isoOn = !!forExport && state.showIso!==false;
+  const isoOn = false;   /* דוד (2026-09-29): הדמיית המבנה מבחוץ הוסרה לגמרי מהייצוא */
   const H2 = state.H||2.5;
   const dxF=0.42, dyF=0.30;
   const isoExtraW = isoOn ? Math.max(0, W*dxF-0.2) : 0;
@@ -5589,8 +5589,6 @@ async function exportPDF(){
       if(combinedSvg) cvs.push(await svgToCanvas(combinedSvg));
       /* דוד (2026-09-19): "אפשר להסיר את ההדמיות תחת כל סקיצה, אבל כן להביא סקיצה מלאה של כל
          הרעיון" -- במקום עמוד הדמיה לכל מבנה בנפרד, עמוד אחד עם הדמיה של כל המבנים מורכבים יחד */
-      const isoAllSvg=renderCombinedIso();
-      if(isoAllSvg) cvs.push(await svgToCanvas(isoAllSvg));
       const savedState=state, savedOpen=curModuleOpen;
       for(let mi=0; mi<canvas.modules.length; mi++){
         const m=canvas.modules[mi];
