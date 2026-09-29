@@ -5127,16 +5127,18 @@ notchesOf().forEach((n,ni)=>{
     /* \u05DE\u05D7\u05D9\u05E6\u05D5\u05EA \u05E4\u05E0\u05D9\u05DE\u05D9\u05D5\u05EA \u2014 \u05DC\u05D0\u05D5\u05E8\u05DA \u05D5\u05DC\u05E8\u05D5\u05D7\u05D1 */
     state.parts.forEach(p=>{
       const [pa,pb]=partSpan(p);
+      const pt=(p.mamad?MAMAD_WALL_T:(p.t||ti));   /* עובי המחיצה — כמו בסקיצה */
+      const noGap=(p.doorType==='none');             /* קיר מלא / קיר בודד — בלי פתח */
       let s2='';
       if(p.dir==='h'){
-        const y0=p.x-ti/2, gx1=pb-p.doorOff, gx0=gx1-p.doorW;
-        if(gx0-pa>0.01) s2 += prism(pa,y0,gx0-pa,ti,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
-        if(pb-gx1>0.01) s2 += prism(gx1,y0,pb-gx1,ti,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
+        const y0=p.x-pt/2, gx1=noGap? pb : pb-p.doorOff, gx0=noGap? pb : gx1-p.doorW;
+        if(gx0-pa>0.01) s2 += prism(pa,y0,gx0-pa,pt,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
+        if(pb-gx1>0.01) s2 += prism(gx1,y0,pb-gx1,pt,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
         push((pa+pb)/2, p.x, s2);
       } else {
-        const x=p.x-ti/2, gy1=pb-p.doorOff, gy0=gy1-p.doorW;
-        if(gy0-pa>0.01) s2 = prism(x,pa,ti,gy0-pa,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
-        if(pb-gy1>0.01) s2 += prism(x,gy1,ti,pb-gy1,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
+        const x=p.x-pt/2, gy1=noGap? pb : pb-p.doorOff, gy0=noGap? pb : gy1-p.doorW;
+        if(gy0-pa>0.01) s2 = prism(x,pa,pt,gy0-pa,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
+        if(pb-gy1>0.01) s2 += prism(x,gy1,pt,pb-gy1,hPart,'#c9c2b2','#b8b1a1','#e0dacd','#8a8578',0.016);
         push(p.x, (pa+pb)/2, s2);
       }
     });
