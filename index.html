@@ -507,7 +507,7 @@
     <div id="clashWarn" style="display:none; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:10px; padding:8px 12px; font-size:12.5px; line-height:1.5"></div>
 
     <div class="btns">
-      <button class="btn primary" id="btnPDF">&#x5D4;&#x5D5;&#x5E8;&#x5D3;&#x5EA; &#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; (PDF)</button>
+      <button class="btn primary" id="btnPDF">פתיחת סקיצה (PDF)</button>
       <button class="btn primary" id="btnAgree2" style="background:#15803d; border-color:#15803d">&#x5D4;&#x5D5;&#x5E8;&#x5D3;&#x5EA; &#x5D4;&#x5E1;&#x5DB;&#x5DD; &#x5DC;&#x5D7;&#x5EA;&#x5D9;&#x5DE;&#x5D4; (PDF)</button>
       <button class="btn sec" id="btnSign2">&#x270D; &#x5D7;&#x5EA;&#x5D9;&#x5DE;&#x5D4; &#x5E2;&#x5DC; &#x5D4;&#x5DE;&#x5E1;&#x5DA; &#x2190; &#x5D4;&#x5E1;&#x5DB;&#x5DD; &#x5D7;&#x5EA;&#x5D5;&#x5DD;</button>
       <button class="btn sec" id="btnPNG">&#x5D4;&#x5D5;&#x5E8;&#x5D3;&#x5EA; &#x5EA;&#x5DE;&#x5D5;&#x5E0;&#x5D4; (PNG)</button>
@@ -5580,6 +5580,10 @@ function planMeta(){
   return { kind:'plan', v:1, multi:false, data:state };
 }
 async function exportPDF(){
+  /* דוד (2026-09-29): הכפתור לא מוריד קובץ — פותח את ה-PDF בלשונית חדשה, ומשם אפשר להוריד ידנית.
+     הלשונית נפתחת מיד בלחיצה (לפני כל המתנה), אחרת הדפדפן חוסם אותה כחלון קופץ. */
+  let win=null;
+  try{ win=window.open('','_blank'); if(win) win.document.write('<!doctype html><title>סקיצה</title><p dir="rtl" style="font-family:Arial,sans-serif;font-size:18px;margin:40px;color:#334">מכין את הסקיצה…</p>'); }catch(e){ win=null; }
   try{
     let blob;
     const meta=planMeta();
@@ -5607,8 +5611,10 @@ async function exportPDF(){
       blob=pdfFromCanvases(cvs, meta);
       flash('\u05E7\u05D5\u05D1\u05E5 PDF \u05D9\u05E8\u05D3 \u05DC\u05DE\u05D7\u05E9\u05D1');
     }
-    downloadBlob(blob, fileBase()+'.pdf');
-  }catch(err){ flash('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D9\u05D9\u05E6\u05D5\u05D0 \u05D4-PDF'); }
+    const pdfFile=new File([blob], fileBase()+'.pdf', {type:'application/pdf'});
+    if(win && !win.closed){ win.location.href=URL.createObjectURL(pdfFile); flash('הסקיצה נפתחה בלשונית חדשה — אפשר להוריד משם'); }
+    else downloadBlob(blob, fileBase()+'.pdf');
+  }catch(err){ if(win && !win.closed) try{ win.close(); }catch(e){} flash('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D9\u05D9\u05E6\u05D5\u05D0 \u05D4-PDF'); }
 }
 
 /* ===== \u05D4\u05E1\u05DB\u05DD \u05D4\u05D6\u05DE\u05E0\u05D4 \u2014 \u05E2\u05DE\u05D5\u05D3 \u05EA\u05E0\u05D0\u05D9\u05DD + \u05E1\u05E4\u05D7, \u05E0\u05D1\u05E0\u05D9\u05DD \u05DB\u05D3\u05E4\u05D9 A4 ===== */
