@@ -285,6 +285,13 @@
     </div>
 
     <div class="card">
+      <h3>שקע בקיר <small>הכנסת חלק מהקיר פנימה — כניסה מקורה / מרפסת</small></h3>
+      <div id="notchList"></div>
+      <button class="addbtn" id="addNotch">+ הוסף שקע בקיר</button>
+      <div class="hint">אפשר גם בלחיצה כפולה על קיר חיצוני בסקיצה, במקום שבו רוצים את השקע. גוררים את השקע פנימה/החוצה כדי לשנות את העומק, או לאורך הקיר כדי להזיז אותו; גוררים את הריבועים הכתומים בקצוות כדי לשנות רוחב. דלת או חלון שנמצאים בתחום השקע עוברים אוטומטית לקיר הפנימי שלו. שקע שמגיע עד פינת המבנה יוצר צורת ר.</div>
+    </div>
+
+    <div class="card">
       <h3>&#x5D3;&#x5DC;&#x5EA;&#x5D5;&#x5EA; &#x5D7;&#x5D5;&#x5E5; <small>&#x5D1;&#x5E7;&#x5D9;&#x5E8;&#x5D5;&#x5EA; &#x5D4;&#x5D7;&#x5D9;&#x5E6;&#x5D5;&#x5E0;&#x5D9;&#x5D9;&#x5DD;</small></h3>
       <div id="doorList"></div>
       <button class="addbtn" id="addDoor">+ &#x5D4;&#x5D5;&#x5E1;&#x5E3; &#x5D3;&#x5DC;&#x5EA;</button>
@@ -374,6 +381,7 @@
       <h3>&#x5DE;&#x5D7;&#x5D9;&#x5E6;&#x5D5;&#x5EA; &#x5D5;&#x5D7;&#x5D3;&#x5E8;&#x5D9;&#x5DD; <small>&#x5DC;&#x5D0;&#x5D5;&#x5E8;&#x5DA; &#x5D0;&#x5D5; &#x5DC;&#x5E8;&#x5D5;&#x5D7;&#x5D1;, &#x5DE;&#x5DC;&#x5D0;&#x5D4; &#x5D0;&#x5D5; &#x5D7;&#x5DC;&#x5E7;&#x5D9;&#x5EA;</small></h3>
       <div id="partList"></div>
       <button class="addbtn" id="addPart">+ &#x5D4;&#x5D5;&#x5E1;&#x5E3; &#x5DE;&#x5D7;&#x5D9;&#x5E6;&#x5D4;</button>
+      <button class="addbtn" id="addWallSeg">+ הוסף קיר בודד (קטע קיר בלי דלת)</button>
       <div class="hint">&#x5F4;&#x5D7;&#x5DC;&#x5E7;&#x5D9;&#x5EA;&#x5F4;: &#x5DE;&#x5DE;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5DE;&#x5BE;/&#x5E2;&#x5D3; (&#x5D1;&#x5DE;&#x5D8;&#x5E8;&#x5D9;&#x5DD; &#x5DC;&#x5D0;&#x5D5;&#x5E8;&#x5DA; &#x5D4;&#x5DE;&#x5D7;&#x5D9;&#x5E6;&#x5D4;). &#x5E8;&#x5D9;&#x5E7; = &#x5DE;&#x5E7;&#x5D9;&#x5E8; &#x5DC;&#x5E7;&#x5D9;&#x5E8;.</div>
     </div>
 
@@ -737,7 +745,7 @@ function cleanState(L,W,step){
   return {
     planName:'\u05E1\u05E7\u05D9\u05E6\u05EA \u05DE\u05D1\u05E0\u05D4 '+W+'\u00D7'+L, bizName:'\u05D3\u05E8\u05DA \u05D0\u05E8\u05E5 \u05DE\u05D1\u05E0\u05D9\u05DD \u05D9\u05D1\u05D9\u05DC\u05D9\u05DD',
     L, W, showDims:true, step:step||1, tOut:0.05, tIn:0.05, H:2.5, showIso:true, showInt:true, panelType:'kalkar', panelThick:5,
-    wins:[], parts:[], rooms:[], notes:[], cornerWins:[],
+    wins:[], parts:[], rooms:[], notes:[], cornerWins:[], notches:[],
     customer:'', custId:'', phone:'', address:'', quoteNo:'', agreeNotes:'', meetPay:'', finalPrice:'', addonsFreeList:[],
     doors:[ {wall:'bottom', off:Math.round((L/2-0.45)*100)/100, w:0.9, hinge:'R', type:'swing', material:'pladelet'} ],
     bath:{show:false, attach:'top', x:Math.max(t, L-t-1.5), w:1.5, d:1.4, flip:false, doorOff:0.06, arr:0, doorWall:'front', doorFlip:true, showerShape:'square', shW:0.8, shD:0.8, snkLen:60},
@@ -1333,7 +1341,7 @@ function renderCombined(opts){
        עדיין קורא לו "מבנה 4" (למשל אחרי מחיקת מבנה מהאמצע), מה שהיה מבלבל את דוד עצמו
        כשהוא צריך להצליב בין המסך לתוכנית המודפסת. מוסיפים גם את מידות המבנה ישירות
        במקרא, כדי שגם התצוגה הכללית תענה על "מה אורך/רוחב של המבנה" בלי לפתוח עמוד נפרד. */
-    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+(fr.L*fr.W).toFixed(1)+' מ״ר'+(m.data.mamad? '  ·  ממ״ד ('+MAMAD_SPEC_HE+', בכתום)':'');
+    const nameTxt = esc(m.name) + (idx>0 ? ' ('+REL_HE[m.rel||'side']+')' : '') + '  ·  אורך '+fmt(fr.L)+' × רוחב '+fmt(fr.W)+' מ׳  ·  '+netArea(m.data).toFixed(1)+' מ״ר'+(m.data.mamad? '  ·  ממ״ד ('+MAMAD_SPEC_HE+', בכתום)':'');
     legend.push(nameTxt);
     /* עמוד מודפס -- בלי מסגרת "המבנה הפעיל" של העורך (הייתה מודפסת ככחול מקווקו ובלבלה) */
     const isActive = false;
@@ -1351,7 +1359,7 @@ function renderCombined(opts){
   const legendRowH=0.42*tk2, legendTop=0.62*tk2, legendBottom=0.3*tk2;
   const legendH = legend.length ? legendTop+legend.length*legendRowH+legendBottom : 0;
   const titleTxt = esc(state.planName||'תרשים מבנים מחוברים');
-  const totalArea = canvas.modules.reduce((s,m)=>s+m.data.L*m.data.W, 0);
+  const totalArea = canvas.modules.reduce((s,m)=>s+netArea(m.data), 0);
   const subTxt = 'תצוגה כללית — '+canvas.modules.length+' מבנים מחוברים · מעטפת כוללת '+fmt(bxMax-bxMin)+' × '+fmt(byMax-byMin)+' מ׳ · שטח מצטבר כולל '+totalArea.toFixed(1)+' מ"ר · משקל משוער כולל '+(combinedWeightKg()/1000).toFixed(1)+' טון'+(state.bizName? ' · '+state.bizName:'')+' · '+new Date().toLocaleDateString('he-IL');
   /* חשוב: כאן, בניגוד ל-rtlText הרגילה בקובץ, משתמשים ב-text-anchor="end" בלי direction="rtl" --
      נבדק ידנית: השילוב end+direction=rtl גורם לטקסט "לברוח" ימינה מחוץ ל-viewBox ולהיחתך
@@ -1730,11 +1738,57 @@ function clampOnWall(it){
   it.w = r2(clamp(it.w, 0.3, wl-2*t-0.1));
   it.off = r2(clamp(it.off, t+0.02, wl-t-it.w-0.02));
 }
+/* ===== שקע בקיר (notch) — חלק מקיר חוץ שנסוג פנימה בעומק d =====
+   מערכת מקומית לכל קיר: u לאורך הקיר (אותו כיוון כמו off של חלונות), v פנימה מהפאה החיצונית. */
+function notchesOf(d){ return ((d||state).notches)||[]; }
+function notchLocalToWorld(wall,u0,u1,v0,v1,L,W){
+  if(wall==='top')    return [u0, v0, u1-u0, v1-v0];
+  if(wall==='bottom') return [u0, W-v1, u1-u0, v1-v0];
+  if(wall==='left')   return [v0, u0, v1-v0, u1-u0];
+  return [L-v1, u0, v1-v0, u1-u0];
+}
+function notchPt(wall,u,v,L,W){
+  if(wall==='top') return [u,v]; if(wall==='bottom') return [u,W-v];
+  if(wall==='left') return [v,u]; return [L-v,u];
+}
+function notchGeo(n,L,W,t){
+  const len=(n.wall==='top'||n.wall==='bottom')?L:W, a=n.off, b=n.off+n.w, d=n.d;
+  const atS=a<=0.001, atE=b>=len-0.001;
+  const walls=[notchLocalToWorld(n.wall, atS?0:a-t, atE?len:b+t, d, d+t, L, W)];
+  if(!atS) walls.push(notchLocalToWorld(n.wall, a-t, a, 0, d, L, W));
+  if(!atE) walls.push(notchLocalToWorld(n.wall, b, b+t, 0, d, L, W));
+  return {void:notchLocalToWorld(n.wall, a, b, 0, d, L, W), walls, atS, atE, len};
+}
+/* עומק ההזזה פנימה של פריט על קיר חוץ, אם הוא כולו בתוך שקע (0 אם לא) */
+function notchShift(wall,a,b,dd){
+  const n=notchesOf(dd).find(n=>n.wall===wall && a>=n.off-0.02 && b<=n.off+n.w+0.02);
+  return n? n.d : 0;
+}
+function notchArea(d){ return notchesOf(d).reduce((s,n)=>s+n.w*n.d,0); }
+function netArea(d){ d=d||state; return d.L*d.W - notchArea(d); }
+function notchPerimAdd(d){
+  d=d||state;
+  return notchesOf(d).reduce((s,n)=>{ const len=(n.wall==='top'||n.wall==='bottom')?d.L:d.W; const atS=n.off<=0.001, atE=n.off+n.w>=len-0.001; return s+((atS||atE)?0:2*n.d); },0);
+}
+function clampNotches(){
+  const t=T_OUT, {L,W}=state;
+  if(!Array.isArray(state.notches)) return;
+  state.notches.forEach(n=>{
+    if(!['top','bottom','left','right'].includes(n.wall)) n.wall='bottom';
+    const len=wallLen(n.wall), oth=isH(n.wall)?W:L;
+    n.w=r2(clamp(+n.w||1.2, 0.3, len));
+    n.off=r2(clamp(+n.off||0, 0, len-n.w));
+    if(n.off>0 && n.off<t+0.05) n.off=0;                                  /* קרוב לפינה = נצמד לפינה (צורת ר) */
+    if(n.off+n.w<len && len-(n.off+n.w)<t+0.05) n.off=r2(len-n.w);
+    n.d=r2(clamp(+n.d||0.6, 0.2, Math.max(0.2, oth-2*t-0.3)));
+  });
+}
 function clampAll(){
   T_OUT = state.tOut||0.05; T_IN = state.tIn||0.05;
   const t=T_OUT, {L,W}=state;
   state.wins.forEach(clampOnWall);
   state.doors.forEach(clampOnWall);
+  clampNotches();
   (state.acs||[]).forEach(a=>{ a.w = r2(clamp(a.w, 0.5, 2)); clampOnWall(a); });
   (state.conds||[]).forEach(c=>{
     c.w = r2(clamp(c.w, 0.5, 2));
@@ -1970,7 +2024,7 @@ function solidRects(){
   /* \u05DE\u05D6\u05D2\u05E0\u05D9\u05DD \u05EA\u05DC\u05D5\u05D9\u05D9\u05DD \u05D2\u05D1\u05D5\u05D4 \u05E2\u05DC \u05D4\u05E7\u05D9\u05E8 \u2014 \u05DC\u05D0 \u05DE\u05EA\u05E0\u05D2\u05E9\u05D9\u05DD \u05E2\u05DD \u05E8\u05D9\u05D4\u05D5\u05D8 \u05D5\u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u05E9\u05DE\u05EA\u05D7\u05EA\u05D9\u05D4\u05DD */
   state.parts.forEach((p,i)=>{
     const [pa,pb]=partSpan(p);
-    const wt=(p.mamad?MAMAD_WALL_T:ti);
+    const wt=(p.mamad?MAMAD_WALL_T:(p.t||ti));
     if(p.dir==='h') out.push({name:'\u05D4\u05DE\u05D7\u05D9\u05E6\u05D4', kind:'part', idx:i, x:pa, y:p.x-wt/2, w:pb-pa, h:wt});
     else            out.push({name:'\u05D4\u05DE\u05D7\u05D9\u05E6\u05D4', kind:'part', idx:i, x:p.x-wt/2, y:pa, w:wt, h:pb-pa});
   });
@@ -2350,7 +2404,7 @@ function moduleDrawnItems(){
 function calcWeightKg(){
   const H=state.H||2.5;              /* \u05D2\u05D5\u05D1\u05D4 \u05E7\u05D9\u05E8 \u05DE\u05E9\u05D5\u05E2\u05E8 \u05DC\u05E6\u05D5\u05E8\u05DA \u05D0\u05D5\u05DE\u05D3\u05DF \u05DE\u05E9\u05E7\u05DC (\u05DE') */
   const L=state.L, W=state.W, t=state.tOut||0.05;
-  const area=L*W, perim=2*(L+W);
+  const area=netArea(state), perim=2*(L+W)+notchPerimAdd(state);
   /* \u05DE\u05E2\u05D8\u05E4\u05EA: \u05E9\u05DC\u05D3 \u05E4\u05DC\u05D3\u05D4 \u05E7\u05DC + \u05E4\u05D0\u05E0\u05DC \u05E1\u05E0\u05D3\u05D5\u05D5\u05D9\u05E5' (\u05E7\u05D9\u05E8\u05D5\u05EA+\u05D2\u05D2) + \u05E8\u05E6\u05E4\u05D4 \u2014 \u05DB-115 \u05E7"\u05D2/\u05DE"\u05E8 \u05D1\u05E2\u05D5\u05D1\u05D9 \u05E4\u05D0\u05E0\u05DC \u05EA\u05E7\u05E0\u05D9, \u05E2\u05DD \u05D4\u05EA\u05D0\u05DE\u05D4 \u05E7\u05DC\u05D4 \u05DC\u05E2\u05D5\u05D1\u05D9 \u05D1\u05E4\u05D5\u05E2\u05DC */
   const panelFactor=0.55+0.45*(t/0.05);
   let kg=area*115*panelFactor;
@@ -2497,9 +2551,9 @@ function setArrowGlyphs(){
 function updateSummary(){
   const multi = !!canvas && canvas.modules.length>1;
   $('sumLen').textContent='\u05DE\u05D1\u05E0\u05D4: '+fmt(state.L)+' \u00D7 '+fmt(state.W)+' \u05DE\u05F3'+(multi?' (\u05DE\u05D1\u05E0\u05D4 \u05E4\u05E2\u05D9\u05DC \u05DE\u05EA\u05D5\u05DA '+canvas.modules.length+')':'');
-  const areaActive=(state.L*state.W);
+  const areaActive=netArea(state);
   if(multi){
-    const totalArea=canvas.modules.reduce((s,m)=>s+m.data.L*m.data.W,0);
+    const totalArea=canvas.modules.reduce((s,m)=>s+netArea(m.data),0);
     $('sumArea').textContent='\u05E9\u05D8\u05D7 \u05DE\u05D1\u05E0\u05D4 \u05E4\u05E2\u05D9\u05DC: '+areaActive.toFixed(1)+' \u05DE\u05F4\u05E8 \u00B7 \u05E1\u05D4\u05F4\u05DB \u05DE\u05D7\u05D5\u05D1\u05E8: '+totalArea.toFixed(1)+' \u05DE\u05F4\u05E8';
   } else {
     $('sumArea').textContent='\u05E9\u05D8\u05D7: '+areaActive.toFixed(1)+' \u05DE\u05F4\u05E8';
@@ -2553,6 +2607,21 @@ function cornerWinRow(cw,i){
     <label class="sl" style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" class="cw-bars"${cw.bars?' checked':''}> \u05E1\u05D5\u05E8\u05D2\u05D9\u05DD</label>
     <button class="del" data-act="del" title="\u05DE\u05D7\u05D9\u05E7\u05D4">\u2715</button>
   </div>`;
+}
+function notchRow(n,i){
+  const wallOpts=['top','bottom','left','right'].map(w=>`<option value="${w}" ${n.wall===w?'selected':''}>${WALL_HE[w]}</option>`).join('');
+  return `<div class="item" data-list="notches" data-i="${i}">
+    <select class="nt-wall">${wallOpts}</select>
+    <span class="sl">מיקום</span><input type="number" class="nt-off" step="0.05" value="${n.off}">
+    <span class="sl">רוחב</span><input type="number" class="nt-w" step="0.05" value="${n.w}">
+    <span class="sl">עומק פנימה</span><input type="number" class="nt-d" step="0.05" value="${n.d}">
+    <button class="del" data-act="del" title="מחיקה">✕</button>
+  </div>`;
+}
+function rebuildNotches(){
+  const el=$('notchList'); if(!el) return;
+  el.innerHTML = notchesOf().map((n,i)=>notchRow(n,i)).join('') ||
+    '<div class="hint">אין שקע — לחצו על הוספה, או לחיצה כפולה על קיר חוץ בסקיצה.</div>';
 }
 function rebuildCornerWins(){
   $('cornerWinList').innerHTML = (state.cornerWins||[]).map((cw,i)=>cornerWinRow(cw,i)).join('') ||
@@ -2673,6 +2742,7 @@ function rebuildParts(){
         <option value=""${!p.mamad?' selected':''}>קיר רגיל</option>
         <option value="0.2"${p.mamad?' selected':''}>קיר ממ״ד — 20 ס״מ, בטון ב־40</option>
       </select>
+      <span class="sl">עובי (ס״מ)</span><input type="number" class="p-t" step="1" min="3" max="30" style="width:56px" value="${p.mamad?Math.round(MAMAD_WALL_T*100):Math.round((p.t||T_IN)*100)}"${p.mamad?' disabled title="קיר ממ״ד — עובי קבוע"':''}>
       <span class="sl">${h?'\u05DE\u05E8\u05D7\u05E7 \u05DE\u05D9\u05DE\u05D9\u05DF':'\u05DE\u05E8\u05D7\u05E7 \u05DE\u05DC\u05DE\u05D8\u05D4'}</span><input type="number" class="p-doff" step="0.05" value="${p.doorOff}">
       <button class="ab" data-act="dpos">${h?'\u25C0':'\u25B2'}</button>
       <button class="ab" data-act="dneg">${h?'\u25B6':'\u25BC'}</button>
@@ -2970,7 +3040,7 @@ function rebuildProductPicks(){
   const restHtml = rest.length ? `<div class="prodGroup">${rest.map(renderCat).join('')}</div>` : '';
   $('prodCatList').innerHTML = grouped + restHtml;
 }
-function afterChange(){ clampAll(); syncInputs(); rebuildWins(); rebuildCornerWins(); rebuildDoors(); rebuildParts(); rebuildRooms(); rebuildNotes(); rebuildAdFree(); rebuildFurn(); rebuildAcs(); rebuildConds(); rebuildSocks(); rebuildWaters(); rebuildModules(); rebuildProductPicks(); updateSummary(); render(); }
+function afterChange(){ clampAll(); syncInputs(); rebuildWins(); rebuildCornerWins(); rebuildNotches(); rebuildDoors(); rebuildParts(); rebuildRooms(); rebuildNotes(); rebuildAdFree(); rebuildFurn(); rebuildAcs(); rebuildConds(); rebuildSocks(); rebuildWaters(); rebuildModules(); rebuildProductPicks(); updateSummary(); render(); }
 function lightChange(){ clampAll(); updateSummary(); render(); }
 
 function bindPanel(){
@@ -3013,6 +3083,7 @@ function bindPanel(){
         if(e.target.classList.contains('p-from')){ const v=parseFloat(e.target.value); p.from=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-to')){ const v=parseFloat(e.target.value); p.to=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-dtype')) p.doorType=e.target.value;
+        if(e.target.classList.contains('p-t')){ p.t=r2(clamp(+e.target.value||Math.round(T_IN*100),3,30)/100); }
         if(e.target.classList.contains('p-mamad')){ const v=e.target.value; p.mamad=(v!==''); if(p.mamad) p.mamadThick=MAMAD_WALL_T; }
         /* see addPart handler: partWarn lives in acRow/sockRow, so refresh those too. */
         clampAll(); rebuildParts(); rebuildAcs(); rebuildSocks(); rebuildRooms(); updateSummary(); render(); return;
@@ -3072,6 +3143,26 @@ function bindPanel(){
   $('addWin').addEventListener('click', ()=>{
     state.wins.push({wall:'top', off:snap(state.L/2-0.5,0), w:1.0, h:1.0, sill:0.9, shutter:''});
     clampAll(); rebuildWins(); render();
+  });
+  $('addNotch').addEventListener('click', ()=>{
+    state.notches = state.notches||[];
+    state.notches.push({wall:'bottom', off:r2(Math.max(0,state.L/2-0.75)), w:1.5, d:Math.min(1.0, r2(state.W/3))});
+    clampAll(); rebuildNotches(); rebuildWins(); rebuildDoors(); updateSummary(); render();
+  });
+  $('notchList').addEventListener('change', e=>{
+    const row=e.target.closest('.item'); if(!row) return;
+    const n=notchesOf()[+row.dataset.i]; if(!n) return;
+    const v=parseFloat(e.target.value);
+    if(e.target.classList.contains('nt-wall')) n.wall=e.target.value;
+    if(e.target.classList.contains('nt-off') && !isNaN(v)) n.off=v;
+    if(e.target.classList.contains('nt-w') && !isNaN(v)) n.w=v;
+    if(e.target.classList.contains('nt-d') && !isNaN(v)) n.d=v;
+    clampAll(); rebuildNotches(); updateSummary(); render();
+  });
+  $('notchList').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act="del"]'); if(!btn) return;
+    notchesOf().splice(+btn.closest('.item').dataset.i,1);
+    rebuildNotches(); updateSummary(); render();
   });
   $('addCornerWin').addEventListener('click', ()=>{
     state.cornerWins = state.cornerWins||[];
@@ -3220,7 +3311,14 @@ function bindPanel(){
     clampAll(); rebuildParts(); rebuildAcs(); rebuildSocks(); rebuildRooms(); render();
   });
 
-  /* \u05E9\u05DE\u05D5\u05EA \u05D7\u05D3\u05E8\u05D9\u05DD */
+  /* קיר בודד: מחיצה חלקית (מ־/עד) בלי פתח, באורך 1.5 מ' במרכז — אפשר להזיז, לסובב ולשנות אורך ועובי */
+  $('addWallSeg').addEventListener('click', ()=>{
+    const t=T_OUT, span=state.W-2*t, len=Math.min(1.5, Math.max(0.5, span-0.2));
+    const from=r2(Math.max(t, state.W/2-len/2)), to=r2(Math.min(state.W-t, from+len));
+    state.parts.push({x:r2(state.L/2), dir:'v', from, to, doorType:'none', doorOff:0.12, doorW:0.8, swing:'R'});
+    clampAll(); rebuildParts(); rebuildAcs(); rebuildSocks(); rebuildRooms(); render();
+  });
+  /* שמות חדרים */
   $('addRoom').addEventListener('click', ()=>{
     state.rooms=state.rooms||[];
     state.rooms.push({name:'\u05D7\u05D3\u05E8', x:r2(state.L/2), y:r2(state.W/2)});
@@ -3580,12 +3678,15 @@ function render(forExport, fragmentOnly, splitRenders){
   const text=(x,y,str,fs,fill,anchor,weight)=>`<text x="${f3(x)}" y="${f3(y)}" font-size="${fs}" fill="${fill}" text-anchor="${anchor}"${weight?` font-weight="${weight}"`:''}>${str}</text>`;
 
   /* \u05DE\u05E1\u05D2\u05E8\u05EA \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA \u05E2\u05DC \u05E7\u05D9\u05E8: x \u05DC\u05D0\u05D5\u05E8\u05DA \u05D4\u05E7\u05D9\u05E8, y \u05D7\u05D9\u05D5\u05D1\u05D9 \u05D0\u05DC \u05EA\u05D5\u05DA \u05D4\u05DE\u05D1\u05E0\u05D4 */
-  const onWall=(wall,off)=>({
-    top:    `translate(${f3(off)} ${f3(t)})`,
-    bottom: `translate(${f3(off)} ${f3(W-t)}) scale(1,-1)`,
-    left:   `translate(${f3(t)} ${f3(off)}) rotate(90) scale(1,-1)`,
-    right:  `translate(${f3(L-t)} ${f3(off)}) rotate(90)`
-  })[wall];
+  const onWall=(wall,off,ww)=>{
+    /* פריט (חלון/דלת) שכולו בתוך שקע בקיר — מצויר על הקיר הפנימי של השקע */
+    const sh = (ww===undefined)? 0 : notchShift(wall, off, off+ww);
+    return ({
+    top:    `translate(${f3(off)} ${f3(t+sh)})`,
+    bottom: `translate(${f3(off)} ${f3(W-t-sh)}) scale(1,-1)`,
+    left:   `translate(${f3(t+sh)} ${f3(off)}) rotate(90) scale(1,-1)`,
+    right:  `translate(${f3(L-t-sh)} ${f3(off)}) rotate(90)`
+  })[wall]; };
   /* \u05DE\u05E1\u05D2\u05E8\u05EA \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA: y \u05D7\u05D9\u05D5\u05D1\u05D9 \u05D0\u05DC \u05DE\u05D7\u05D5\u05E5 \u05DC\u05DE\u05D1\u05E0\u05D4 */
   const outWall=(wall,off)=>({
     top:    `translate(${f3(off)} 0) scale(1,-1)`,
@@ -3619,6 +3720,21 @@ const shellTouch = shellIdx>=0 ? computeTouchFlags(shellIdx) : {top:false,bottom
 const shellMamad = !!state.mamad, shellT = shellMamad ? MAMAD_WALL_T : t, shellFill = shellMamad ? '#b45309' : '#000';
 const shellTop = shellTouch.top ? shellT/2 : shellT, shellBot = shellTouch.bottom ? shellT/2 : shellT, shellLft = shellTouch.left ? shellT/2 : shellT, shellRgt = shellTouch.right ? shellT/2 : shellT;
 S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect(0,0,shellLft,W,shellFill)+rect(L-shellRgt,0,shellRgt,W,shellFill);
+/* שקעים בקיר: מוחקים את קטע הקיר המקורי, מציירים קיר אחורי + שני קירות צד, ואזור גרירה */
+notchesOf().forEach((n,ni)=>{
+  const g=notchGeo(n,L,W,shellT), [vx,vy,vw,vh]=g.void;
+  S += rect(vx-0.004,vy-0.004,vw+0.008,vh+0.008,'#fff');
+  g.walls.forEach(r=>{ S += rect(r[0],r[1],r[2],r[3],shellFill); });
+  if(!forExport){
+    const hb=notchLocalToWorld(n.wall, n.off, n.off+n.w, 0, n.d+shellT, L, W);
+    S += `<g data-drag="notch:${ni}" style="cursor:move"><rect x="${f3(hb[0])}" y="${f3(hb[1])}" width="${f3(hb[2])}" height="${f3(hb[3])}" fill="rgba(245,158,11,0.07)" stroke="#f59e0b" stroke-width="0.012" stroke-dasharray="0.06 0.05"/></g>`;
+    const hs=0.16;
+    [['notchA',n.off],['notchB',n.off+n.w]].forEach(([k,u])=>{
+      const [hx,hy]=notchPt(n.wall,u,n.d/2,L,W);
+      S += `<g data-drag="${k}:${ni}" style="cursor:${isH(n.wall)?'ew-resize':'ns-resize'}"><rect x="${f3(hx-hs/2)}" y="${f3(hy-hs/2)}" width="${hs}" height="${hs}" fill="#f59e0b" stroke="#fff" stroke-width="0.02"/></g>`;
+    });
+  }
+});
 
   /* \u05D7\u05DC\u05D5\u05E0\u05D5\u05EA */
   state.wins.forEach((it,wi)=>{
@@ -3635,7 +3751,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     s += line(0,-t/2,w,-t/2,.022);
     s += line(0,y0,0,y0+ds,.03)+line(w,y0,w,y0+ds,.03);
     if(it.bars){ for(let bk=1;bk<=4;bk++){ const bx=w*bk/5; s += line(bx,y0,bx,y0+ds,.02,'#333'); } }
-    S += `<g data-drag="win:${wi}" transform="${onWall(it.wall,it.off)}">${s}</g>`;
+    S += `<g data-drag="win:${wi}" transform="${onWall(it.wall,it.off,it.w)}">${s}</g>`;
   });
 
   /* \u05D7\u05DC\u05D5\u05DF \u05E4\u05D9\u05E0\u05EA\u05D9 \u05DE\u05D0\u05D5\u05D7\u05D3 \u2014 \u05DB\u05E0\u05E3 \u05D1\u05DB\u05DC \u05D0\u05D7\u05D3 \u05DE\u05E9\u05E0\u05D9 \u05D4\u05E7\u05D9\u05E8\u05D5\u05EA \u05D4\u05E0\u05E4\u05D2\u05E9\u05D9\u05DD \u05D1\u05E4\u05D9\u05E0\u05D4, \u05DC\u05DC\u05D0 \u05E2\u05DE\u05D5\u05D3 \u05EA\u05E4\u05E8 \u05D1\u05E4\u05D9\u05E0\u05D4 \u05E2\u05E6\u05DE\u05D4 */
@@ -3676,7 +3792,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       s += it.out ? `<g transform="scale(1,-1)">${leaf}</g>` : leaf;
     }
     if(it.hinge==='R') s = `<g transform="translate(${f3(w)} 0) scale(-1,1)">${s}</g>`;
-    S += `<g data-drag="door:${di}" transform="${onWall(it.wall,it.off)}">${s}</g>`;
+    S += `<g data-drag="door:${di}" transform="${onWall(it.wall,it.off,it.w)}">${s}</g>`;
   });
 
   /* \u05DE\u05D7\u05D9\u05E6\u05D5\u05EA \u05E4\u05E0\u05D9\u05DE\u05D9\u05D5\u05EA + \u05D3\u05DC\u05EA\u05D5\u05EA \u2014 \u05DC\u05D0\u05D5\u05E8\u05DA \u05D0\u05D5 \u05DC\u05E8\u05D5\u05D7\u05D1, \u05DE\u05DC\u05D0\u05D5\u05EA \u05D0\u05D5 \u05D7\u05DC\u05E7\u05D9\u05D5\u05EA */
@@ -3684,7 +3800,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const [pa,pb]=partSpan(p);
     const dw=p.doorW, dt=p.doorType||'swing';
     let ps='', pd='';
-    const wt=(p.mamad?MAMAD_WALL_T:ti);
+    const wt=(p.mamad?MAMAD_WALL_T:(p.t||ti));
     const wallFill=(p.mamad?'#b45309':'#000');
     if(dt==='none'){
       if(p.dir==='h'){ const y=p.x, y0=y-wt/2; ps += rect(pa,y0,pb-pa,wt,wallFill); }
@@ -4298,6 +4414,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     let xs=[0,L];
     state.parts.filter(p=>p.dir!=='h').forEach(p=>xs.push(p.x));
     xs.push(...doorEdges.bottom);
+    notchesOf().filter(n=>n.wall==='bottom').forEach(n=>xs.push(n.off, r2(n.off+n.w)));
     if(state.bath.show && isH(state.bath.attach)){ xs.push(state.bath.x, r2(state.bath.x+state.bath.w)); }
     xs=[...new Set(xs.map(x=>r2(x)))].sort((a,b)=>a-b).filter((x,i,arr)=>i===0||x-arr[i-1]>0.01);
     xs.forEach(x=>{ D += ext(x,W+gapB,x,W+0.86)+tick(x,W+0.7); });
@@ -4325,6 +4442,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     let ys=[0,W];
     state.parts.filter(p=>p.dir==='h').forEach(p=>ys.push(p.x));
     ys.push(...doorEdges.left);
+    notchesOf().filter(n=>n.wall==='left').forEach(n=>ys.push(n.off, r2(n.off+n.w)));
     if(state.bath.show && !isH(state.bath.attach)){ ys.push(state.bath.x, r2(state.bath.x+state.bath.w)); }
     ys=[...new Set(ys.map(y=>r2(y)))].sort((a,b)=>a-b).filter((y,i,arr)=>i===0||y-arr[i-1]>0.01);
     if(ys.length>2){
@@ -4349,7 +4467,14 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       D += halo(cx, cy+0.07, cm(bb.w)+'\u00D7'+cm(bb.d));
       lblAnchor({x:cx-0.55, y:cy-0.12, w:1.1, h:0.32});
     }
-    /* \u05E9\u05DE\u05D5\u05EA \u05D7\u05D3\u05E8\u05D9\u05DD \u2014 \u05E2\u05D5\u05D2\u05E0\u05D9\u05DD \u05E9\u05D4\u05EA\u05D5\u05D5\u05D9\u05D5\u05EA \u05D4\u05D0\u05D7\u05E8\u05D5\u05EA \u05DE\u05EA\u05D7\u05DE\u05E7\u05D5\u05EA \u05DE\u05D4\u05DD */
+    /* שקעים בקיר — רוחב×עומק במרכז השקע */
+    notchesOf().forEach(n=>{
+      const [cx,cy]=notchPt(n.wall, n.off+n.w/2, n.d/2, L, W);
+      const vert=!isH(n.wall);
+      D += halo(cx, cy+(vert?0:0.07), 'שקע '+cm(n.w)+'×'+cm(n.d), vert);
+      lblAnchor(vert? {x:cx-0.16, y:cy-0.6, w:0.32, h:1.2} : {x:cx-0.6, y:cy-0.12, w:1.2, h:0.32});
+    });
+    /* שמות חדרים \u2014 \u05E2\u05D5\u05D2\u05E0\u05D9\u05DD \u05E9\u05D4\u05EA\u05D5\u05D5\u05D9\u05D5\u05EA \u05D4\u05D0\u05D7\u05E8\u05D5\u05EA \u05DE\u05EA\u05D7\u05DE\u05E7\u05D5\u05EA \u05DE\u05D4\u05DD */
     (state.rooms||[]).forEach(rm=>lblAnchor({x:rm.x-0.85, y:rm.y-0.3, w:1.7, h:0.68}));
     if(state.kitchen.show){
       const kk=state.kitchen; let cx,cy,rot=false;
@@ -4381,6 +4506,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
       const horiz=isH(wn.wall);
       let bx = horiz? c : (wn.wall==='left'? t/2 : L-t/2);
       let by = horiz? (wn.wall==='top'? t/2 : W-t/2) : c;
+      { const shB=notchShift(wn.wall,wn.off,wn.off+wn.w); if(shB){ if(wn.wall==='top') by+=shB; else if(wn.wall==='bottom') by-=shB; else if(wn.wall==='left') bx+=shB; else bx-=shB; } }
       /* \u05D0\u05DD \u05E2\u05D9\u05D2\u05D5\u05DC \u05E1\u05DE\u05D5\u05DA \u05EA\u05E4\u05D5\u05E1 \u2014 \u05D4\u05D6\u05D6\u05D4 \u05E7\u05D8\u05E0\u05D4 \u05DC\u05D0\u05D5\u05E8\u05DA \u05D4\u05E7\u05D9\u05E8 */
       bubblePts.forEach(p=>{
         const d2=Math.hypot(p[0]-bx, p[1]-by);
@@ -4491,7 +4617,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const nmT=esc(curModuleLabel), nMods=canvas.modules.length;
     const ttl = /^מבנה \d+$/.test(curModuleLabel) ? nmT+' מתוך '+nMods : nmT+' (מבנה '+(modIdxT+1)+' מתוך '+nMods+')';
     D += rtlText(L,-1.82-hdrExtra,ttl,f3(0.46*tk),'#111','700');
-    const dimsTxt=`רוחב ${fmt(W)} מ׳ × אורך ${fmt(L)} מ׳ · ${(L*W).toFixed(1)} מ״ר · משקל משוער ${weightTonsStr()}`;
+    const dimsTxt=`רוחב ${fmt(W)} מ׳ × אורך ${fmt(L)} מ׳ · ${netArea(state).toFixed(1)} מ״ר · משקל משוער ${weightTonsStr()}`;
     const ctxTxt='תוכנית: '+esc(state.planName||'סקיצת מבנה')+(state.bizName? ' · '+esc(state.bizName):'')+' · '+dateStr;
     D += rtlText(L,-1.44-hdrExtra,dimsTxt,f3(0.3*tk),'#333','600');
     D += rtlText(L,-1.44,ctxTxt,f3(0.23*tk),'#777');
@@ -4499,7 +4625,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
   } else {
     D += rtlText(L,-1.82,(curModuleLabel?curModuleLabel+' — ':'')+esc(state.planName||'סקיצת מבנה'),f3(0.46*tk),'#111','700');
     const sub=(state.bizName? esc(state.bizName)+' · ':'')+
-    `\u05E8\u05D5\u05D7\u05D1 ${fmt(W)} \u05DE\u05F3 \u00D7 \u05D0\u05D5\u05E8\u05DA ${fmt(L)} \u05DE\u05F3 \u00B7 ${(L*W).toFixed(1)} \u05DE\u05F4\u05E8 \u00B7 \u05DE\u05E9\u05E7\u05DC \u05DE\u05E9\u05D5\u05E2\u05E8 ${weightTonsStr()} \u00B7 ${dateStr}`;
+    `\u05E8\u05D5\u05D7\u05D1 ${fmt(W)} \u05DE\u05F3 \u00D7 \u05D0\u05D5\u05E8\u05DA ${fmt(L)} \u05DE\u05F3 \u00B7 ${netArea(state).toFixed(1)} \u05DE\u05F4\u05E8 \u00B7 \u05DE\u05E9\u05E7\u05DC \u05DE\u05E9\u05D5\u05E2\u05E8 ${weightTonsStr()} \u00B7 ${dateStr}`;
     D += rtlText(L,-1.44,sub,f3(0.25*tk),'#555');
   }
   /* \u05E4\u05E8\u05D8\u05D9 \u05D4\u05DC\u05E7\u05D5\u05D7 \u05DC\u05D0 \u05DE\u05D5\u05D3\u05E4\u05E1\u05D9\u05DD \u05E2\u05DC \u05D4\u05E1\u05E7\u05D9\u05E6\u05D4 \u2014 \u05D4\u05DD \u05E0\u05DB\u05E0\u05E1\u05D9\u05DD \u05E8\u05E7 \u05DC\u05E1\u05E4\u05D7 \u05D4\u05D4\u05E1\u05DB\u05DD */
@@ -4645,6 +4771,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     const yB = isoTop+0.55+H2+W*dyF;
     /* \u05D0\u05DD \u05E8\u05D5\u05D1 \u05D4\u05E4\u05EA\u05D7\u05D9\u05DD \u05D1\u05E7\u05D9\u05E8 \u05D4\u05E2\u05DC\u05D9\u05D5\u05DF \u2014 \u05DE\u05E6\u05D9\u05D2\u05D9\u05DD \u05D0\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4 \u05DE\u05D4\u05E6\u05D3 \u05D4\u05E9\u05E0\u05D9 \u05DB\u05D3\u05D9 \u05E9\u05D4\u05D3\u05DC\u05EA \u05EA\u05D9\u05E8\u05D0\u05D4 */
     const cnt=wl2=>state.doors.filter(d=>d.wall===wl2).length*2 + state.wins.filter(x=>x.wall===wl2).length;
+    const inNotchIso=(it)=>notchShift(it.wall,it.off,it.off+it.w)>0;
     const flip = cnt('top') > cnt('bottom');
     const frontWall = flip?'top':'bottom', sideWall = flip?'left':'right';
     const P=(x,yp,z)=>[ f3(x+(W-yp)*dxF), f3(yB - z - (W-yp)*dyF) ];
@@ -4666,6 +4793,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     }
     /* \u05D7\u05DC\u05D5\u05E0\u05D5\u05EA \u2014 \u05DC\u05E4\u05D9 \u05D2\u05D5\u05D1\u05D4 \u05D4\u05D7\u05DC\u05D5\u05DF \u05D5\u05D2\u05D5\u05D1\u05D4 \u05D4\u05D0\u05D3\u05DF \u05E9\u05D4\u05D5\u05D2\u05D3\u05E8\u05D5 */
     state.wins.forEach(wn=>{
+      if(inNotchIso(wn)) return;
       const zw0=Math.min(wn.sill===undefined?0.95:wn.sill, H2-0.5);
       const zw1=Math.min(zw0+(wn.h||1.0), H2-0.15);
       if(wn.wall===frontWall){
@@ -4693,6 +4821,7 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     /* \u05D3\u05DC\u05EA\u05D5\u05EA */
     const zd=Math.min(2.0, H2-0.2);
     state.doors.forEach(d=>{
+      if(inNotchIso(d)) return;
       if(d.wall===frontWall){
         const x0=flip? L-d.off-d.w : d.off, w2=d.w, yT=yB-zd;
         I += `<rect x="${f3(x0-0.05)}" y="${f3(yT-0.05)}" width="${f3(w2+0.10)}" height="${f3(zd+0.05)}" fill="#fff" stroke="#8a94a0" stroke-width="0.018"/>`;
@@ -4799,6 +4928,61 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     }
     /* \u05E7\u05D5 \u05DE\u05EA\u05D0\u05E8 \u05DE\u05D5\u05D3\u05D2\u05E9 \u05DC\u05D2\u05D2 */
     I += poly([P(0,W,H2),P(L,W,H2),P(L,0,H2),P(0,0,H2)],'none','#4b5563',0.035);
+    /* שקעים בקיר החזית / הצד הנראה — חותכים את הנפח ומציירים את הפאות הפנימיות, ואת הפתחים שבתוכם */
+    notchesOf().forEach(n=>{
+      const dN=n.d, zdN=Math.min(2.0, H2-0.2);
+      /* מסכה: חלקי המבנה שנמצאים לפני השקע מסתירים את הפאה האחורית שלו */
+      const mkMask=(polys)=>{ window.__nmSeq=(window.__nmSeq||0)+1; const id='nm'+window.__nmSeq;
+        I += `<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="400" height="400"><rect x="-100" y="-100" width="400" height="400" fill="#fff"/>${polys.map(q=>`<polygon points="${q.map(p=>p.join(',')).join(' ')}" fill="#000"/>`).join('')}</mask></defs>`;
+        return id; };
+      const itemsIn=[...state.wins.filter(x=>x.wall===n.wall && inNotchIso(x)).map(x=>({k:'w',it:x})), ...state.doors.filter(x=>x.wall===n.wall && inNotchIso(x)).map(x=>({k:'d',it:x}))];
+      if(n.wall===frontWall){
+        const xa=flip? L-n.off-n.w : n.off, xb=xa+n.w;
+        /* בחזית: y של החזית = W (במערכת P) */
+        I += poly([P(xa,W,0),P(xb,W,0),P(xb,W,H2),P(xa,W,H2)],'#fff','#fff',0.06);
+        I += poly([P(xa,W,H2),P(xb,W,H2),P(xb,W-dN,H2),P(xa,W-dN,H2)],'#fff','#fff',0.06);
+        const mF = xb<L-0.001 ? mkMask([[P(xb,W,0),P(L,W,0),P(L,W,H2),P(xb,W,H2)]]) : null;
+        I += mF? `<g mask="url(#${mF})">` : '<g>';
+        I += poly([P(xa,W-dN,0),P(xb,W-dN,0),P(xb,W-dN,H2),P(xa,W-dN,H2)],'url(#gWallF)','#5b6570',0.022);
+        itemsIn.forEach(({k,it})=>{
+          const x0=(flip? L-it.off-it.w : it.off);
+          const z0=k==='d'?0:Math.min(it.sill===undefined?0.95:it.sill, H2-0.5), z1=k==='d'?zdN:Math.min(z0+(it.h||1.0), H2-0.15);
+          const pts=[P(x0,W-dN,z0),P(x0+it.w,W-dN,z0),P(x0+it.w,W-dN,z1),P(x0,W-dN,z1)];
+          I += poly(pts,'#fff','#8a94a0',0.018);
+          I += poly(pts, k==='d'?'url(#gDoor)':'url(#gGlass)', '#6b7480', 0.014);
+        });
+        I += '</g>';
+        if(xa>0.001) I += poly([P(xa,W,0),P(xa,W-dN,0),P(xa,W-dN,H2),P(xa,W,H2)],'url(#gWallS)','#5b6570',0.022);
+        { const pl=[]; if(xa>0.001) pl.push(P(xa,W,H2)); pl.push(P(xa,W-dN,H2),P(xb,W-dN,H2)); if(xb<L-0.001) pl.push(P(xb,W,H2));
+          I += `<polyline points="${pl.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#4b5563" stroke-width="0.035" stroke-linejoin="round"/>`;
+          if(xb<L-0.001){ const e0=P(xb,W,0), e1=P(xb,W,H2); I += `<line x1="${e0[0]}" y1="${e0[1]}" x2="${e1[0]}" y2="${e1[1]}" stroke="#5b6570" stroke-width="0.028"/>`; } }
+      } else if(n.wall===sideWall){
+        const oa=flip? W-n.off-n.w : n.off, ob=oa+n.w;
+        I += poly([P(L,oa,0),P(L,ob,0),P(L,ob,H2),P(L,oa,H2)],'#fff','#fff',0.06);
+        I += poly([P(L,oa,H2),P(L,ob,H2),P(L-dN,ob,H2),P(L-dN,oa,H2)],'#fff','#fff',0.06);
+        const mS = mkMask([[P(0,W,0),P(L,W,0),P(L,W,H2),P(0,W,H2)]].concat(ob<W-0.001? [[P(L,ob,0),P(L,W,0),P(L,W,H2),P(L,ob,H2)]] : []));
+        I += `<g mask="url(#${mS})">`;
+        I += poly([P(L-dN,oa,0),P(L-dN,ob,0),P(L-dN,ob,H2),P(L-dN,oa,H2)],'url(#gWallS)','#5b6570',0.022);
+        itemsIn.forEach(({k,it})=>{
+          const o=(flip? W-it.off-it.w : it.off);
+          const z0=k==='d'?0:Math.min(it.sill===undefined?0.95:it.sill, H2-0.5), z1=k==='d'?zdN:Math.min(z0+(it.h||1.0), H2-0.15);
+          const pts=[P(L-dN,o,z0),P(L-dN,o+it.w,z0),P(L-dN,o+it.w,z1),P(L-dN,o,z1)];
+          I += poly(pts,'#fff','#8a94a0',0.018);
+          I += poly(pts, k==='d'?'url(#gDoor)':'url(#gGlassS)', '#6b7480', 0.014);
+        });
+        I += '</g>';
+        if(oa>0.001) I += poly([P(L,oa,0),P(L-dN,oa,0),P(L-dN,oa,H2),P(L,oa,H2)],'url(#gWallF)','#5b6570',0.022);
+        { const pl=[]; if(oa>0.001) pl.push(P(L,oa,H2)); pl.push(P(L-dN,oa,H2),P(L-dN,ob,H2)); if(ob<W-0.001) pl.push(P(L,ob,H2));
+          I += `<polyline points="${pl.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#4b5563" stroke-width="0.035" stroke-linejoin="round"/>`;
+          if(ob<W-0.001){ const e0=P(L,ob,0), e1=P(L,ob,H2); I += `<line x1="${e0[0]}" y1="${e0[1]}" x2="${e1[0]}" y2="${e1[1]}" stroke="#5b6570" stroke-width="0.028"/>`; } }
+      } else {
+        /* שקע בקיר שאינו נראה בהדמיה — רואים אותו רק כחיתוך בגג */
+        let [rx,ry,rw,rh]=notchGeo(n,L,W,0).void;
+        if(flip){ rx=L-rx-rw; ry=W-ry-rh; }
+        const q=[P(rx,ry,H2),P(rx+rw,ry,H2),P(rx+rw,ry+rh,H2),P(rx,ry+rh,H2)];
+        I += poly(q,'#fff','#4b5563',0.03);
+      }
+    });
     const isoBlock = rtlText(L, isoTop+0.18, '\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4'+modTitleSuffix, 0.3, '#555','600') + I;
     if(splitRenders) R += isoBlock; else D += isoBlock;
   }
@@ -4838,6 +5022,12 @@ S += rect(0,0,L,shellTop,shellFill)+rect(0,W-shellBot,L,shellBot,shellFill)+rect
     /* \u05D4\u05E6\u05DC\u05DC\u05D4 \u05E2\u05D3\u05D9\u05E0\u05D4 \u05DC\u05D0\u05D5\u05E8\u05DA \u05D4\u05E7\u05D9\u05E8\u05D5\u05EA \u05D4\u05E2\u05D5\u05DE\u05D3\u05D9\u05DD \u2014 \u05DE\u05E2\u05D2\u05E0\u05EA \u05D0\u05D5\u05EA\u05DD \u05DC\u05E8\u05E6\u05E4\u05D4 */
     G += `<rect x="${f3(t)}" y="${f3(t)}" width="${f3(L-2*t)}" height="0.15" fill="rgba(90,80,60,0.06)"/>`;
     G += `<rect x="${f3(t)}" y="${f3(t)}" width="0.15" height="${f3(W-2*t)}" fill="rgba(90,80,60,0.06)"/>`;
+    /* שקעים בקיר — הרצפה נחתכת (חוץ) וקירות השקע מסומנים כקירות נמוכים */
+    notchesOf().forEach(n=>{
+      const g=notchGeo(n,L,W,t), [vx,vy,vw,vh]=g.void;
+      G += `<rect x="${f3(vx)}" y="${f3(vy)}" width="${f3(vw)}" height="${f3(vh)}" fill="#fff"/>`;
+      g.walls.forEach(r=>{ G += prism(r[0],r[1],r[2],r[3],hStub,'#f5f0e6','#c5bfb1','#d8d2c6','#8a8578',0.016); });
+    });
     /* \u05E1\u05E4\u05D9 \u05D3\u05DC\u05EA\u05D5\u05EA \u05D7\u05D5\u05E5 */
     state.doors.forEach(d=>{
       if(d.wall==='top') G += `<rect x="${f3(d.off)}" y="0" width="${f3(d.w)}" height="${f3(t)}" fill="#efe9dd"/>`;
@@ -5672,7 +5862,7 @@ function agreeFormSvg(){
   const multiForm = !!canvas && canvas.modules.length>1;
   const Wv=state.W, Lv=state.L;
   if(multiForm){
-    const totalArea=canvas.modules.reduce((s2,m)=>s2+m.data.L*m.data.W,0);
+    const totalArea=canvas.modules.reduce((s2,m)=>s2+netArea(m.data),0);
     const partsTxt=canvas.modules.map(m=>m.name+' '+fmt(m.data.W)+'\u00D7'+fmt(m.data.L)+' \u05DE\u05F3').join('  \u00B7  ');
     B += agT(196,fy,'\u05D2\u05D5\u05D3\u05DC:',3.7,'700')+agT(174,fy,partsTxt,3.1,'');
     fy+=M.sz1;
@@ -6209,6 +6399,7 @@ function dragCapture(id){
     const f=state.bath.fix[idx]; return f?{x:f.x, y:f.y}:null;
   }
   if(kind==='mod'){ const md=canvas.modules[+idx]; return md?{x:md.dx, y:md.dy}:null; }
+  if(kind==='notch'||kind==='notchA'||kind==='notchB'){ const n=notchesOf()[+idx]; return n?{o:n.off, w:n.w, d:n.d}:null; }
   return null;
 }
 function dragApply(id, v, dx, dy){
@@ -6229,6 +6420,17 @@ function dragApply(id, v, dx, dy){
   else if(kind==='note'){ const nt=(state.notes||[])[+idx]; if(nt){ nt.x=S5(v.x+dx); nt.y=S5(v.y+dy); } }
   else if(kind==='noteT'){ const nt=(state.notes||[])[+idx]; if(nt){ nt.tx=S5(v.x+dx); nt.ty=S5(v.y+dy); } }
   else if(kind==='bath'){ state.bath.x=S5(v.o+(isH(state.bath.attach)?dx:dy)); }
+  else if(kind==='notch'||kind==='notchA'||kind==='notchB'){
+    const n=notchesOf()[+idx]; if(!n) return;
+    const along=isH(n.wall)? dx : dy;
+    const inward = n.wall==='top'? dy : n.wall==='bottom'? -dy : n.wall==='left'? dx : -dx;
+    if(kind==='notch'){
+      /* נועלים לציר אחד לפי כיוון התנועה הראשונה: פנימה/החוצה = עומק, לאורך הקיר = מיקום */
+      if(!dragCtx.lock) dragCtx.lock = Math.abs(inward)>=Math.abs(along) ? 'd' : 'o';
+      if(dragCtx.lock==='d') n.d=S5(v.d+inward); else n.off=S5(v.o+along);
+    } else if(kind==='notchA'){ const e0=v.o+v.w; n.off=S5(v.o+along); n.w=r2(e0-n.off); }
+    else { n.w=S5(v.w+along); }
+  }
   else if(kind==='kit'){
     const k=state.kitchen;
     if(k.wall==='bath'){ k.off=S5(v.o + (isH(state.bath.attach)? dx : dy)); }
@@ -6297,6 +6499,21 @@ function dragApply(id, v, dx, dy){
        (scrollIntoView על השורה המתאימה ב-moduleList) -- מיותר וגם מפריע, כי הוא כבר מסתכל
        על הסקיצה ורוצה שהיא תישאר במקום. השורה הפעילה עדיין מסומנת (מסגרת כחולה) דרך
        moduleRow()/rebuildModules() למי שבכל זאת יגלול לשם לבד -- רק לא גוררים את המסך אליה. */
+  });
+  /* לחיצה כפולה על קיר חוץ — יוצרת שקע בנקודה הזו, ואז גוררים פנימה */
+  host.addEventListener('dblclick', e=>{
+    if(e.target.closest && e.target.closest('[data-drag]')) return;
+    const p=svgPoint(e); if(!p) return;
+    const {L,W}=state, tol=0.35;
+    if(p.x<-tol || p.x>L+tol || p.y<-tol || p.y>W+tol) return;
+    const cand=[[Math.abs(p.y),'top',p.x],[Math.abs(W-p.y),'bottom',p.x],[Math.abs(p.x),'left',p.y],[Math.abs(L-p.x),'right',p.y]].sort((a,b)=>a[0]-b[0])[0];
+    if(cand[0]>tol) return;
+    const w=1.2;
+    state.notches=state.notches||[];
+    state.notches.push({wall:cand[1], off:r2(Math.round((cand[2]-w/2)/0.05)*0.05), w, d:0.6});
+    afterChange();
+    flash && flash('נוצר שקע בקיר — גררו אותו פנימה כדי לקבוע עומק');
+    e.preventDefault();
   });
   host.addEventListener('pointerdown', e=>{
     const g=e.target.closest ? e.target.closest('[data-drag]') : null; if(!g) return;
