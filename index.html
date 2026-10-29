@@ -339,6 +339,18 @@
           <button class="flipbtn" id="bathDoorFlip">&#x5E6;&#x5D3; &#x5E4;&#x5EA;&#x5D9;&#x5D7;&#x5D4; &#x21C4;</button>
         </div>
         <div class="frow">
+          <select id="bathWinWall" title="חלון האוורור של השירותים">
+            <option value="auto">חלון אוורור: אוטומטי (מעל האסלה)</option>
+            <option value="out">חלון אוורור: קיר חיצוני</option>
+            <option value="A">חלון אוורור: קיר צד 1</option>
+            <option value="B">חלון אוורור: קיר צד 2</option>
+            <option value="none">בלי חלון אוורור</option>
+          </select>
+          <span class="sl">הזזה</span>
+          <button class="ab" id="bathWinNeg">&#x25C0;</button>
+          <button class="ab" id="bathWinPos">&#x25B6;</button>
+        </div>
+        <div class="frow">
           <button class="flipbtn" id="bathArr">&#x5E1;&#x5D3;&#x5E8; &#x5DB;&#x5DC;&#x5D9;&#x5DD; &#x21C4;</button>
           <button class="flipbtn" id="bathFlip">&#x5D4;&#x5D9;&#x5E4;&#x5D5;&#x5DA; &#x21C4;</button>
           <button class="flipbtn" id="bathAuto">&#x5E1;&#x5D9;&#x5D3;&#x5D5;&#x5E8; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;</button>
@@ -1691,6 +1703,7 @@ function siblingModuleGroups(activeIdx){
 }
 let undoStack = [], undoBusy = false;   /* \u05D4\u05D9\u05E1\u05D8\u05D5\u05E8\u05D9\u05D9\u05EA \u05D1\u05D9\u05D8\u05D5\u05DC */
 let viewScale = 1;   /* \u05D2\u05D5\u05D3\u05DC \u05D4\u05EA\u05E6\u05D5\u05D2\u05D4 \u05E2\u05DC \u05D4\u05DE\u05E1\u05DA \u05D1\u05DC\u05D1\u05D3 \u2014 \u05DC\u05D0 \u05DE\u05E9\u05E4\u05D9\u05E2 \u05E2\u05DC \u05D4\u05D9\u05D9\u05E6\u05D5\u05D0 */
+let lastBathWin = null;
 let lastBathPos = null;   /* \u05DE\u05D9\u05E7\u05D5\u05DE\u05D9 \u05D4\u05DB\u05DC\u05D9\u05DD \u05D1\u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD \u05DB\u05E4\u05D9 \u05E9\u05E6\u05D5\u05D9\u05E8\u05D5 \u2014 \u05D1\u05E1\u05D9\u05E1 \u05DC\u05D2\u05E8\u05D9\u05E8\u05D4 */
 let lastBathGeo = null;   /* \u05D2\u05D0\u05D5\u05DE\u05D8\u05E8\u05D9\u05D9\u05EA \u05D4\u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD \u05D4\u05DE\u05DC\u05D0\u05D4 \u2014 \u05DC\u05D4\u05D3\u05DE\u05D9\u05D9\u05EA \u05D4\u05E4\u05E0\u05D9\u05DD */
 
@@ -1712,8 +1725,36 @@ function partSpan(p){
   const full = (p.dir==='h') ? [t, state.L-t] : [t, state.W-t];
   let a = (p.from>0)? Math.max(full[0], p.from) : full[0];
   let b = (p.to>0)? Math.min(full[1], p.to) : full[1];
-  if(b-a<0.4){ a=full[0]; b=full[1]; }
+  /* דוד 29.10: "קיר בודד לא נותן להקטין את הקו" — קודם כל קטע קצר מ-0.4 קפץ בחזרה לאורך מלא. עכשיו מינימום 0.1 ובלי קפיצה */
+  if(b<a){ const tmp=a; a=b; b=tmp; }
+  if(b-a<0.1){ if(a+0.1<=full[1]) b=a+0.1; else a=b-0.1; }
   return [r2(a), r2(b)];
+}
+/* "+ הוסף דלת למחיצה": בקיר מלא — הופך את הדלת הראשית לפעילה; אחרת מוסיף דלת נוספת במרווח הפנוי הגדול ביותר */
+function addPartDoor(p){
+  const [pa,pb]=partSpan(p), w=0.8;
+  if((p.doorType||'swing')==='none'){ p.doorType='swing'; p.doorW=w; p.doorOff=r2(Math.max(0.02,((pb-pa)-w)/2)); return; }
+  const sol=partSolids(p,pa,pb).sort((u,v)=>(v[1]-v[0])-(u[1]-u[0]))[0];
+  let off=0.02;
+  if(sol){ const mid=(sol[0]+sol[1])/2; off=r2(pb-mid-w/2); }
+  p.xdoors=p.xdoors||[];
+  p.xdoors.push({type:'swing', off, w, swing:'R', hinge:'T'});
+}
+const axisMaxLen = p => p.dir==='h' ? state.L : state.W;
+/* כל הדלתות במחיצה: הראשית (doorOff/doorW/doorType) + נוספות (p.xdoors). off נמדד מקצה b כמו doorOff */
+function partDoors(p){
+  const out=[];
+  if((p.doorType||'swing')!=='none') out.push({k:-1, off:p.doorOff, w:p.doorW, type:p.doorType||'swing', swing:p.swing, hinge:p.hinge});
+  (p.xdoors||[]).forEach((d,k)=>out.push({k, off:d.off, w:d.w, type:d.type||'swing', swing:d.swing, hinge:d.hinge}));
+  return out;
+}
+/* קטעי הקיר שנשארים בין הפתחים — [a,b] בציר המחיצה */
+function partSolids(p, pa, pb){
+  const gaps=partDoors(p).map(d=>[r2(pb-d.off-d.w), r2(pb-d.off)]).sort((u,v)=>u[0]-v[0]);
+  const out=[]; let cur=pa;
+  gaps.forEach(([g0,g1])=>{ if(g0>cur) out.push([cur,g0]); cur=Math.max(cur,g1); });
+  if(pb>cur) out.push([cur,pb]);
+  return out;
 }
 /* \u05D4\u05DE\u05D7\u05D9\u05E6\u05D4 \u05D4\u05D0\u05E0\u05DB\u05D9\u05EA \u05D4\u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u2014 \u05E2\u05DC\u05D9\u05D4 \u05E0\u05EA\u05DC\u05D9\u05DD \u05DE\u05D6\u05D2\u05DF/\u05E9\u05E7\u05E2 "\u05E2\u05DC \u05D4\u05DE\u05D7\u05D9\u05E6\u05D4" */
 const vPart0 = () => state.parts.find(p=>p.dir!=='h') || null;
@@ -1737,6 +1778,34 @@ function clampOnWall(it){
   const t=T_OUT, wl=wallLen(it.wall);
   it.w = r2(clamp(it.w, 0.3, wl-2*t-0.1));
   it.off = r2(clamp(it.off, t+0.02, wl-t-it.w-0.02));
+  /* דוד 29.10: חלון/דלת לא "רצים" לתוך אזור של שקע — נשארים על הקיר הקיים בפועל */
+  const bl=notchBlocked(it.wall);
+  const hit=o=>bl.some(([g0,g1])=>o<g1-0.001 && o+it.w>g0+0.001);
+  if(bl.length && hit(it.off)){
+    const lo=t+0.02, hi=wl-t-it.w-0.02;
+    const cands=[];
+    bl.forEach(([g0,g1])=>{ cands.push(r2(g0-it.w-0.02), r2(g1+0.02)); });
+    const ok=cands.filter(o=>o>=lo-0.001 && o<=hi+0.001 && !hit(o)).sort((a,b)=>Math.abs(a-it.off)-Math.abs(b-it.off));
+    if(ok.length) it.off=ok[0];
+  }
+}
+/* קטעים על קיר חוץ שאין בהם קיר (שקע על אותו קיר, או שקע פינתי בקיר הניצב שאוכל את הקצה) */
+function notchBlocked(wall){
+  const {L,W}=state, out=[];
+  notchesOf().forEach(n=>{
+    const len=isH(n.wall)?L:W, atS=n.off<=0.001, atE=n.off+n.w>=len-0.001;
+    if(n.wall===wall){ out.push([n.off, n.off+n.w]); return; }
+    const wl=wallLen(wall);
+    const map={
+      left:  {top:[atS,0], bottom:[atS,1]},
+      right: {top:[atE,0], bottom:[atE,1]},
+      top:   {left:[atS,0], right:[atS,1]},
+      bottom:{left:[atE,0], right:[atE,1]},
+    };
+    const m=map[wall]&&map[wall][n.wall];
+    if(m && m[0]) out.push(m[1]===0 ? [0, n.d] : [wl-n.d, wl]);
+  });
+  return out;
 }
 /* ===== שקע בקיר (notch) — חלק מקיר חוץ שנסוג פנימה בעומק d =====
    מערכת מקומית לכל קיר: u לאורך הקיר (אותו כיוון כמו off של חלונות), v פנימה מהפאה החיצונית. */
@@ -1933,6 +2002,13 @@ function clampAll(){
     p.doorW = r2(clamp(p.doorW, 0.5, 1.6));
     const [pa,pb]=partSpan(p);
     p.doorOff = r2(clamp(p.doorOff, 0.02, Math.max(0.02, (pb-pa)-p.doorW-0.02)));
+    if(p.from>0) p.from=r2(clamp(p.from, t, axisMaxLen(p)-t));
+    if(p.to>0)   p.to=r2(clamp(p.to, t, axisMaxLen(p)-t));
+    (p.xdoors||[]).forEach(d=>{
+      d.type = d.type||'swing';
+      d.w = r2(clamp(+d.w||0.8, 0.5, 1.6));
+      d.off = r2(clamp(+d.off||0.02, 0.02, Math.max(0.02, (pb-pa)-d.w-0.02)));
+    });
   });
   (state.rooms||[]).forEach(rm=>{
     rm.x=r2(clamp(rm.x, t+0.3, L-t-0.3)); rm.y=r2(clamp(rm.y, t+0.3, W-t-0.3));
@@ -2503,6 +2579,7 @@ function syncInputs(){
   $('bathShow').checked=b.show; $('bathAttach').value=b.attach;
   $('bathX').value=b.x; $('bathW').value=b.w; $('bathD').value=b.d;
   $('bathDoorWall').value=b.doorWall||'front';
+  $('bathWinWall').value=(b.vwin&&b.vwin.wall)||'auto';
   $('bathDoorW').value=b.doorW===undefined?0.6:b.doorW;
   $('optProj').checked=!!state.projector;
   $('bathShower').value=b.showerShape||'square';
@@ -2750,6 +2827,25 @@ function rebuildParts(){
       <button class="flipbtn" data-act="swing">\u05DB\u05D9\u05D5\u05D5\u05DF \u21C4</button>
       <button class="flipbtn" data-act="phinge">\u05E6\u05D3 \u05E4\u05EA\u05D9\u05D7\u05D4 \u21C4</button>
       <button class="del" data-act="del">\u2715</button>
+      ${(p.xdoors||[]).map((d,k)=>`
+      <span style="flex-basis:100%;height:0"></span>
+      <div class="pxd" data-k="${k}" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;padding:8px 10px;margin-top:4px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc">
+        <span class="sl" style="font-weight:600">דלת ${k+2}</span>
+        <select class="px-type">
+          <option value="swing"${d.type==='swing'?' selected':''}>דלת רגילה</option>
+          <option value="slide"${d.type==='slide'?' selected':''}>דלת הזזה</option>
+          <option value="open"${d.type==='open'?' selected':''}>פתח בלי דלת</option>
+        </select>
+        <span style="display:inline-flex;gap:6px;align-items:center"><span class="sl">${h?'מרחק מימין':'מרחק מלמטה'}</span><input type="number" class="px-off" step="0.05" value="${d.off}">
+        <button class="ab" data-act="xdpos">${h?'\u25C0':'\u25B2'}</button>
+        <button class="ab" data-act="xdneg">${h?'\u25B6':'\u25BC'}</button></span>
+        <span style="display:inline-flex;gap:6px;align-items:center"><span class="sl">רוחב</span><input type="number" class="px-w" step="0.05" value="${d.w}"></span>
+        <button class="flipbtn" data-act="xdswing">כיוון \u21C4</button>
+        <button class="flipbtn" data-act="xdhinge">צד פתיחה \u21C4</button>
+        <button class="del" data-act="xddel">\u2715</button>
+      </div>`).join('')}
+      <span style="flex-basis:100%;height:0"></span>
+      <button class="addbtn" data-act="xdadd" style="width:100%;margin-top:4px">+ הוסף דלת למחיצה</button>
     </div>`;}).join('') ||
     '<div class="hint">\u05D0\u05D9\u05DF \u05DE\u05D7\u05D9\u05E6\u05D5\u05EA \u2014 \u05D4\u05D5\u05E1\u05D9\u05E4\u05D5 \u05DE\u05D7\u05D9\u05E6\u05D4 \u05DB\u05D3\u05D9 \u05DC\u05D7\u05DC\u05E7 \u05DC\u05D7\u05D3\u05E8\u05D9\u05DD.</div>';
 }
@@ -3083,6 +3179,13 @@ function bindPanel(){
         if(e.target.classList.contains('p-from')){ const v=parseFloat(e.target.value); p.from=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-to')){ const v=parseFloat(e.target.value); p.to=isNaN(v)?0:v; }
         if(e.target.classList.contains('p-dtype')) p.doorType=e.target.value;
+        const xr=e.target.closest('.pxd');
+        if(xr){ const d=(p.xdoors||[])[+xr.dataset.k];
+          if(d){
+            if(e.target.classList.contains('px-type')) d.type=e.target.value;
+            if(e.target.classList.contains('px-off')) d.off=+e.target.value||d.off;
+            if(e.target.classList.contains('px-w')) d.w=+e.target.value||d.w;
+          } }
         if(e.target.classList.contains('p-t')){ p.t=r2(clamp(+e.target.value||Math.round(T_IN*100),3,30)/100); }
         if(e.target.classList.contains('p-mamad')){ const v=e.target.value; p.mamad=(v!==''); if(p.mamad) p.mamadThick=MAMAD_WALL_T; }
         /* see addPart handler: partWarn lives in acRow/sockRow, so refresh those too. */
@@ -3110,7 +3213,14 @@ function bindPanel(){
       const row=btn.closest('.item'), i=+row.dataset.i, list=row.dataset.list, act=btn.dataset.act;
       if(list==='parts'){
         const p=state.parts[i];
+        const xr=btn.closest('.pxd'), xd=xr?(p.xdoors||[])[+xr.dataset.k]:null;
         if(act==='del') state.parts.splice(i,1);
+        else if(act==='xdadd') addPartDoor(p);
+        else if(xd && act==='xddel') p.xdoors.splice(+xr.dataset.k,1);
+        else if(xd && act==='xdpos') xd.off=snap(xd.off,1);
+        else if(xd && act==='xdneg') xd.off=snap(xd.off,-1);
+        else if(xd && act==='xdswing') xd.swing = xd.swing==='R'?'L':'R';
+        else if(xd && act==='xdhinge') xd.hinge = xd.hinge==='B'?'T':'B';
         else if(act==='xneg') slideMove(p,'x',-1);
         else if(act==='xpos') slideMove(p,'x',1);
         else if(act==='dpos') p.doorOff=snap(p.doorOff,1);
@@ -3118,7 +3228,10 @@ function bindPanel(){
         else if(act==='swing') p.swing = p.swing==='R'?'L':'R';
         else if(act==='phinge') p.hinge = p.hinge==='B'?'T':'B';
         else if(act==='pdir'){
+          /* קטע חלקי (קיר בודד) שומר על האורך שלו כשמסובבים — קודם זה איפס אותו לקיר מלא */
+          const [oa,ob]=partSpan(p), oldFull=(p.dir==='h'?state.L:state.W)-2*T_OUT, segLen=r2(ob-oa), wasPartial=segLen<oldFull-0.01;
           p.dir = p.dir==='h'?'v':'h'; p.from=0; p.to=0; p.x=r2((p.dir==='h'?state.W:state.L)/2);
+          if(wasPartial){ const nl=(p.dir==='h'?state.L:state.W), len=Math.min(segLen, nl-2*T_OUT); p.from=r2(Math.max(T_OUT,nl/2-len/2)); p.to=r2(p.from+len); }
           /* אותו איזון-ברירת-מחדל כמו ב-addPart למעלה, הפעם לפי טווח הכיוון החדש (L/W מתחלפים
              תפקידים כשהופכים לאורך/לרוחב) — אחרת דלת שכבר מוזזה לפי הציר הישן יכולה להישאר
              קרובה מדי לקצה בציר החדש ולשחזר את אותה תקלה שדוד דיווח עליה. */
@@ -3410,6 +3523,13 @@ function bindPanel(){
   /* \u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD */
   $('bathShow').addEventListener('input', e=>{ state.bath.show=e.target.checked; render(); });
   $('bathAttach').addEventListener('change', e=>{ state.bath.attach=e.target.value; lightChange(); syncInputs(); });
+  $('bathWinWall').addEventListener('change', e=>{ const v=e.target.value; state.bath.vwin = v==='auto' ? undefined : {wall:v, pos:null}; render(); });
+  ['bathWinNeg','bathWinPos'].forEach((id,ii)=>$(id).addEventListener('click', ()=>{
+    if(!lastBathWin) return;
+    const cur=state.bath.vwin, base=(cur&&cur.wall===lastBathWin.wall&&cur.pos!=null)?cur.pos:lastBathWin.pos;
+    state.bath.vwin={wall:lastBathWin.wall, pos:r2(base+(ii?0.1:-0.1))};
+    $('bathWinWall').value=lastBathWin.wall; render();
+  }));
   $('bathDoorWall').addEventListener('change', e=>{ state.bath.doorWall=e.target.value; lightChange(); syncInputs(); });
   $('bathDoorW').addEventListener('input', e=>{ state.bath.doorW=+e.target.value||0.6; render(); });
   $('optProj').addEventListener('input', e=>{ state.projector=e.target.checked; render(); flash(e.target.checked?'\u05E0\u05D5\u05E1\u05E3 \u05E4\u05E8\u05D5\u05D6\'\u05E7\u05D8\u05D5\u05E8 \u05DE\u05E2\u05DC \u05D4\u05D3\u05DC\u05EA \u05D4\u05E8\u05D0\u05E9\u05D9\u05EA':'\u05D4\u05E4\u05E8\u05D5\u05D6\'\u05E7\u05D8\u05D5\u05E8 \u05D4\u05D5\u05E1\u05E8'); });
@@ -3918,36 +4038,33 @@ function topViewSvg(){
     const [pa,pb]=partSpan(p);
     const wt=(p.mamad?MAMAD_WALL_T:(p.t||ti)), pv=Math.max(wt,0.08);
     const col=p.mamad?'#8a4b16':'#3a3a3a';
-    const dt=p.doorType||'swing', dw=p.doorW;
-    if(p.dir==='h'){
-      const y=p.x;
-      if(dt==='none'){ partSvg += R(pa,y-pv/2,pb-pa,pv,col); return; }
-      const gx1=r2(pb-p.doorOff), gx0=r2(gx1-dw);
-      partSvg += R(pa,y-pv/2,gx0-pa,pv,col)+R(gx1,y-pv/2,pb-gx1,pv,col);
-      if(dt==='swing'){
-        const T=(p.hinge||'T')==='T', Rr=p.swing==='R';
-        if(T) partSvg += doorSwing([gx1,y],[gx1,y+(Rr?dw:-dw)],[gx0,y]);
-        else  partSvg += doorSwing([gx0,y],[gx0,y+(Rr?dw:-dw)],[gx1,y]);
-      } else if(dt==='slide'){
-        const py=(p.swing==='R') ? y+pv/2+0.01 : y-pv/2-0.06;
-        const px0=((p.hinge||'T')==='T') ? gx1 : gx0-dw;
-        partSvg += R(px0,py,dw,0.05,'#c9a27a',` stroke="#7a5c3c" stroke-width="0.01"`);
+    partSolids(p,pa,pb).forEach(([u0,u1])=>{
+      partSvg += (p.dir==='h') ? R(u0,p.x-pv/2,u1-u0,pv,col) : R(p.x-pv/2,u0,pv,u1-u0,col);
+    });
+    partDoors(p).forEach(d=>{
+      const dt=d.type, dw=d.w, T=(d.hinge||'T')==='T', Rr=d.swing==='R';
+      if(p.dir==='h'){
+        const y=p.x, gx1=r2(pb-d.off), gx0=r2(gx1-dw);
+        if(dt==='swing'){
+          if(T) partSvg += doorSwing([gx1,y],[gx1,y+(Rr?dw:-dw)],[gx0,y]);
+          else  partSvg += doorSwing([gx0,y],[gx0,y+(Rr?dw:-dw)],[gx1,y]);
+        } else if(dt==='slide'){
+          const py=Rr ? y+pv/2+0.01 : y-pv/2-0.06;
+          let sx=T?gx1:gx0-dw; if(sx+dw>pb+0.01) sx=gx0-dw; else if(sx<pa-0.01) sx=gx1;
+          partSvg += R(sx,py,dw,0.05,'#c9a27a',` stroke="#7a5c3c" stroke-width="0.01"`);
+        }
+      } else {
+        const B=p.x, gy1=r2(pb-d.off), gy0=r2(gy1-dw);
+        if(dt==='swing'){
+          if(T) partSvg += doorSwing([B,gy0],[B+(Rr?dw:-dw),gy0],[B,gy1]);
+          else  partSvg += doorSwing([B,gy1],[B+(Rr?dw:-dw),gy1],[B,gy0]);
+        } else if(dt==='slide'){
+          const px=Rr ? B+pv/2+0.01 : B-pv/2-0.06;
+          let sy=T?gy0-dw:gy1; if(sy<pa-0.01) sy=gy1; else if(sy+dw>pb+0.01) sy=gy0-dw;
+          partSvg += R(px,sy,0.05,dw,'#c9a27a',` stroke="#7a5c3c" stroke-width="0.01"`);
+        }
       }
-    } else {
-      const B=p.x;
-      if(dt==='none'){ partSvg += R(B-pv/2,pa,pv,pb-pa,col); return; }
-      const gy1=r2(pb-p.doorOff), gy0=r2(gy1-dw);
-      partSvg += R(B-pv/2,pa,pv,gy0-pa,col)+R(B-pv/2,gy1,pv,pb-gy1,col);
-      if(dt==='swing'){
-        const T=(p.hinge||'T')==='T', Rr=p.swing==='R';
-        if(T) partSvg += doorSwing([B,gy0],[B+(Rr?dw:-dw),gy0],[B,gy1]);
-        else  partSvg += doorSwing([B,gy1],[B+(Rr?dw:-dw),gy1],[B,gy0]);
-      } else if(dt==='slide'){
-        const px=(p.swing==='R') ? B+pv/2+0.01 : B-pv/2-0.06;
-        const py0=((p.hinge||'T')==='T') ? gy0-dw : gy1;
-        partSvg += R(px,py0,0.05,dw,'#c9a27a',` stroke="#7a5c3c" stroke-width="0.01"`);
-      }
-    }
+    });
   });
 
   /* ----- קירות חוץ (עם שקעים), חלונות ודלתות ----- */
@@ -4154,61 +4271,71 @@ notchesOf().forEach((n,ni)=>{
   /* \u05DE\u05D7\u05D9\u05E6\u05D5\u05EA \u05E4\u05E0\u05D9\u05DE\u05D9\u05D5\u05EA + \u05D3\u05DC\u05EA\u05D5\u05EA \u2014 \u05DC\u05D0\u05D5\u05E8\u05DA \u05D0\u05D5 \u05DC\u05E8\u05D5\u05D7\u05D1, \u05DE\u05DC\u05D0\u05D5\u05EA \u05D0\u05D5 \u05D7\u05DC\u05E7\u05D9\u05D5\u05EA */
   state.parts.forEach((p,pi)=>{
     const [pa,pb]=partSpan(p);
-    const dw=p.doorW, dt=p.doorType||'swing';
-    let ps='', pd='';
+    let ps='', pdAll='';
     const wt=(p.mamad?MAMAD_WALL_T:(p.t||ti));
     const wallFill=(p.mamad?'#b45309':'#000');
-    if(dt==='none'){
-      if(p.dir==='h'){ const y=p.x, y0=y-wt/2; ps += rect(pa,y0,pb-pa,wt,wallFill); }
-      else { const x=p.x-wt/2; ps += rect(x,pa,wt,pb-pa,wallFill); }
-    } else if(p.dir==='h'){
-      const y=p.x, y0=y-wt/2;
-      const gx1=r2(pb-p.doorOff), gx0=r2(gx1-dw);
-      ps += rect(pa,y0,gx0-pa,wt,wallFill);
-      ps += rect(gx1,y0,pb-gx1,wt,wallFill);
-      ps += line(gx0,y0,gx0,y0+wt,.02)+line(gx1,y0,gx1,y0+wt,.02);
-      pd += `<rect x="${f3(gx0)}" y="${f3(y-0.26)}" width="${f3(dw)}" height="0.52" fill="rgba(255,255,255,0.001)"/>`;
-      if(dt==='swing'){
-        if((p.hinge||'T')==='T'){
-          if(p.swing==='R'){ pd += line(gx1,y,gx1,y+dw,.032)+arc(gx1,y+dw,gx0,y,dw,1); }
-          else             { pd += line(gx1,y,gx1,y-dw,.032)+arc(gx1,y-dw,gx0,y,dw,0); }
-        } else {
-          if(p.swing==='R'){ pd += line(gx0,y,gx0,y+dw,.032)+arc(gx0,y+dw,gx1,y,dw,0); }
-          else             { pd += line(gx0,y,gx0,y-dw,.032)+arc(gx0,y-dw,gx1,y,dw,1); }
+    partSolids(p,pa,pb).forEach(([u0,u1])=>{
+      if(p.dir==='h') ps += rect(u0,p.x-wt/2,u1-u0,wt,wallFill);
+      else ps += rect(p.x-wt/2,u0,wt,u1-u0,wallFill);
+    });
+    partDoors(p).forEach(d=>{
+      const dw=d.w, dt=d.type, hg=(d.hinge||'T'), sw=d.swing;
+      let pd='';
+      if(p.dir==='h'){
+        const y=p.x, y0=y-wt/2;
+        const gx1=r2(pb-d.off), gx0=r2(gx1-dw);
+        pd += line(gx0,y0,gx0,y0+wt,.02)+line(gx1,y0,gx1,y0+wt,.02);
+        pd += `<rect x="${f3(gx0)}" y="${f3(y-0.26)}" width="${f3(dw)}" height="0.52" fill="rgba(255,255,255,0.001)"/>`;
+        if(dt==='swing'){
+          if(hg==='T'){
+            if(sw==='R'){ pd += line(gx1,y,gx1,y+dw,.032)+arc(gx1,y+dw,gx0,y,dw,1); }
+            else        { pd += line(gx1,y,gx1,y-dw,.032)+arc(gx1,y-dw,gx0,y,dw,0); }
+          } else {
+            if(sw==='R'){ pd += line(gx0,y,gx0,y+dw,.032)+arc(gx0,y+dw,gx1,y,dw,0); }
+            else        { pd += line(gx0,y,gx0,y-dw,.032)+arc(gx0,y-dw,gx1,y,dw,1); }
+          }
+        } else if(dt==='slide'){
+          const py=(sw==='R') ? y+wt/2+0.015 : y-wt/2-0.075;
+          let px0=(hg==='T') ? gx1 : gx0-dw; if(px0+dw>pb+0.01) px0=gx0-dw; else if(px0<pa-0.01) px0=gx1;
+          pd += `<rect x="${f3(px0)}" y="${f3(py)}" width="${f3(dw)}" height="0.06" fill="#fff" stroke="#111" stroke-width="0.02"/>`;
+          pd += line(gx0+0.08,y,gx1-0.08,y,.02,'#555');
+          pd += line(gx1-0.08,y,gx1-0.2,y-0.06,.02,'#555')+line(gx1-0.08,y,gx1-0.2,y+0.06,.02,'#555');
         }
-      } else if(dt==='slide'){
-        const py=(p.swing==='R') ? y+wt/2+0.015 : y-wt/2-0.075;
-        const px0=((p.hinge||'T')==='T') ? gx1 : gx0-dw;
-        pd += `<rect x="${f3(px0)}" y="${f3(py)}" width="${f3(dw)}" height="0.06" fill="#fff" stroke="#111" stroke-width="0.02"/>`;
-        pd += line(gx0+0.08,y,gx1-0.08,y,.02,'#555');
-        pd += line(gx1-0.08,y,gx1-0.2,y-0.06,.02,'#555')+line(gx1-0.08,y,gx1-0.2,y+0.06,.02,'#555');
-      }
-    } else {
-      const x=p.x-wt/2;
-      const gy1=r2(pb-p.doorOff), gy0=r2(gy1-dw);
-      ps += rect(x,pa,wt,gy0-pa,wallFill);
-      ps += rect(x,gy1,wt,pb-gy1,wallFill);
-      ps += line(x,gy0,x+wt,gy0,.02)+line(x,gy1,x+wt,gy1,.02);
-      pd += `<rect x="${f3(p.x-0.26)}" y="${f3(gy0)}" width="0.52" height="${f3(dw)}" fill="rgba(255,255,255,0.001)"/>`;
-      const B=p.x;
-      if(dt==='swing'){
-        if((p.hinge||'T')==='T'){
-          if(p.swing==='R'){ pd += line(B,gy0,B+dw,gy0,.032)+arc(B+dw,gy0,B,gy1,dw,1); }
-          else             { pd += line(B,gy0,B-dw,gy0,.032)+arc(B-dw,gy0,B,gy1,dw,0); }
-        } else {
-          if(p.swing==='R'){ pd += line(B,gy1,B+dw,gy1,.032)+arc(B+dw,gy1,B,gy0,dw,0); }
-          else             { pd += line(B,gy1,B-dw,gy1,.032)+arc(B-dw,gy1,B,gy0,dw,1); }
+      } else {
+        const x=p.x-wt/2;
+        const gy1=r2(pb-d.off), gy0=r2(gy1-dw);
+        pd += line(x,gy0,x+wt,gy0,.02)+line(x,gy1,x+wt,gy1,.02);
+        pd += `<rect x="${f3(p.x-0.26)}" y="${f3(gy0)}" width="0.52" height="${f3(dw)}" fill="rgba(255,255,255,0.001)"/>`;
+        const B=p.x;
+        if(dt==='swing'){
+          if(hg==='T'){
+            if(sw==='R'){ pd += line(B,gy0,B+dw,gy0,.032)+arc(B+dw,gy0,B,gy1,dw,1); }
+            else        { pd += line(B,gy0,B-dw,gy0,.032)+arc(B-dw,gy0,B,gy1,dw,0); }
+          } else {
+            if(sw==='R'){ pd += line(B,gy1,B+dw,gy1,.032)+arc(B+dw,gy1,B,gy0,dw,0); }
+            else        { pd += line(B,gy1,B-dw,gy1,.032)+arc(B-dw,gy1,B,gy0,dw,1); }
+          }
+        } else if(dt==='slide'){
+          const px=(sw==='R') ? p.x+wt/2+0.015 : p.x-wt/2-0.075;
+          let py0=(hg==='T') ? gy0-dw : gy1; if(py0<pa-0.01) py0=gy1; else if(py0+dw>pb+0.01) py0=gy0-dw;
+          pd += `<rect x="${f3(px)}" y="${f3(py0)}" width="0.06" height="${f3(dw)}" fill="#fff" stroke="#111" stroke-width="0.02"/>`;
+          pd += line(B,gy0+0.08,B,gy1-0.08,.02,'#555');
+          pd += line(B,gy1-0.08,B-0.06,gy1-0.2,.02,'#555')+line(B,gy1-0.08,B+0.06,gy1-0.2,.02,'#555');
         }
-      } else if(dt==='slide'){
-        const px=(p.swing==='R') ? p.x+wt/2+0.015 : p.x-wt/2-0.075;
-        const py0=((p.hinge||'T')==='T') ? gy0-dw : gy1;
-        pd += `<rect x="${f3(px)}" y="${f3(py0)}" width="0.06" height="${f3(dw)}" fill="#fff" stroke="#111" stroke-width="0.02"/>`;
-        pd += line(B,gy0+0.08,B,gy1-0.08,.02,'#555');
-        pd += line(B,gy1-0.08,B-0.06,gy1-0.2,.02,'#555')+line(B,gy1-0.08,B+0.06,gy1-0.2,.02,'#555');
       }
+      pdAll += `<g data-drag="${d.k<0?'pdoor:'+pi:'pxdoor:'+pi+'_'+d.k}">${pd}</g>`;
+    });
+    S += `<g data-drag="part:${pi}">${ps}${pdAll}</g>`;
+    /* ידיות קצה לקיצור/הארכת המחיצה בגרירה */
+    if(!forExport){
+      const hs=0.16;
+      [['partA',pa],['partB',pb]].forEach(([k,u])=>{
+        const hx=p.dir==='h'?u:p.x, hy=p.dir==='h'?p.x:u;
+        S += `<g data-drag="${k}:${pi}" style="cursor:${p.dir==='h'?'ew-resize':'ns-resize'}"><rect x="${f3(hx-hs/2)}" y="${f3(hy-hs/2)}" width="${hs}" height="${hs}" fill="#f59e0b" stroke="#fff" stroke-width="0.02"/></g>`;
+      });
     }
-    S += `<g data-drag="part:${pi}">${ps}<g data-drag="pdoor:${pi}">${pd}</g></g>`;
   });
+
 
   /* \u05D9\u05D7\u05D9\u05D3\u05EA \u05E9\u05D9\u05E8\u05D5\u05EA\u05D9\u05DD \u2014 \u05E0\u05E6\u05DE\u05D3\u05EA \u05DC\u05DB\u05DC \u05D0\u05D7\u05D3 \u05DE\u05D0\u05E8\u05D1\u05E2\u05EA \u05D4\u05E7\u05D9\u05E8\u05D5\u05EA, \u05D3\u05DC\u05EA \u05E0\u05D9\u05EA\u05E0\u05EA \u05DC\u05D4\u05D6\u05D6\u05D4 */
   if(state.bath.show){
@@ -4388,24 +4515,34 @@ notchesOf().forEach((n,ni)=>{
     snS += elli(snX+sW2/2, snY+sH2/2, Math.min(0.15*sc, sW2*0.33), Math.min(0.15*sc, sH2*0.33));
     s += `<g data-drag="bfix:sink">${snS}</g>`;
     /* \u05D7\u05DC\u05D5\u05DF \u05D0\u05D5\u05D5\u05E8\u05D5\u05E8 \u05E7\u05D1\u05D5\u05E2 \u2014 \u05E2\u05D5\u05E7\u05D1 \u05D0\u05D7\u05E8\u05D9 \u05D4\u05D0\u05E1\u05DC\u05D4, \u05D2\u05DD \u05DB\u05E9\u05D4\u05D9\u05D0 \u05E2\u05D5\u05D1\u05E8\u05EA \u05DC\u05E7\u05D9\u05E8 \u05E6\u05D3\u05D3\u05D9 */
-    if(tOr==='down'){
-      const tx = pos.toilet.x + tW2/2;
+    /* חלון אוורור: ברירת מחדל עוקב אחרי האסלה; דוד 29.10 — אפשר לבחור קיר ולהזיז בחופשיות (b.vwin) */
+    const vw=b.vwin||{};
+    const vWall = vw.wall || (tOr==='down' ? 'out' : (tOr==='left' ? 'B' : 'A'));
+    lastBathWin=null;
+    if(vWall==='out'){
       const ww2 = Math.min(0.55, (ix1-ix0)-0.12);
-      const wx0 = clamp(tx-ww2/2, ix0+0.04, ix1-ww2-0.04);
+      const auto = pos.toilet.x + tW2/2;
+      const cx = clamp(vw.wall&&vw.pos!=null ? vw.pos : auto, ix0+0.04+ww2/2, ix1-0.04-ww2/2);
+      const wx0 = cx-ww2/2;
+      lastBathWin={wall:'out', pos:r2(cx)}; if(vw.wall&&vw.pos!=null) vw.pos=r2(cx);
       const ds2=Math.max(t,0.16), vy0=-t/2-ds2/2;
-      s += rect(wx0,-t-0.008,ww2,t+0.016,'#fff');
-      s += `<rect x="${f3(wx0)}" y="${f3(vy0)}" width="${f3(ww2)}" height="${f3(ds2)}" fill="#fff" stroke="#000" stroke-width="0.025"/>`;
-      s += line(wx0,-t/2,wx0+ww2,-t/2,.022);
-      s += line(wx0,vy0,wx0,vy0+ds2,.025)+line(wx0+ww2,vy0,wx0+ww2,vy0+ds2,.025);
-    } else {
+      let ws = rect(wx0,-t-0.008,ww2,t+0.016,'#fff');
+      ws += `<rect x="${f3(wx0)}" y="${f3(vy0)}" width="${f3(ww2)}" height="${f3(ds2)}" fill="#fff" stroke="#000" stroke-width="0.025"/>`;
+      ws += line(wx0,-t/2,wx0+ww2,-t/2,.022);
+      ws += line(wx0,vy0,wx0,vy0+ds2,.025)+line(wx0+ww2,vy0,wx0+ww2,vy0+ds2,.025);
+      s += `<g data-drag="bwin:0" style="cursor:ew-resize">${ws}</g>`;
+    } else if(vWall==='A' || vWall==='B'){
       const ds2=Math.max(t,0.16);
       const ww2=Math.min(0.55, Math.max(0.3, wy-0.1));
-      const cy=clamp(pos.toilet.y+tH2/2, 0.05+ww2/2, Math.max(0.05+ww2/2, wy-0.05-ww2/2));
-      const xC=(tOr==='left') ? bw-ti/2 : ti/2;
-      s += rect(xC-ti/2-0.008, cy-ww2/2, ti+0.016, ww2, '#fff');
-      s += `<rect x="${f3(xC-ds2/2)}" y="${f3(cy-ww2/2)}" width="${f3(ds2)}" height="${f3(ww2)}" fill="#fff" stroke="#000" stroke-width="0.025"/>`;
-      s += line(xC, cy-ww2/2, xC, cy+ww2/2, .022);
-      s += line(xC-ds2/2, cy-ww2/2, xC+ds2/2, cy-ww2/2, .025)+line(xC-ds2/2, cy+ww2/2, xC+ds2/2, cy+ww2/2, .025);
+      const auto = pos.toilet.y+tH2/2;
+      const cy=clamp(vw.wall&&vw.pos!=null ? vw.pos : auto, 0.05+ww2/2, Math.max(0.05+ww2/2, wy-0.05-ww2/2));
+      lastBathWin={wall:vWall, pos:r2(cy)}; if(vw.wall&&vw.pos!=null) vw.pos=r2(cy);
+      const xC=(vWall==='B') ? bw-ti/2 : ti/2;
+      let ws = rect(xC-ti/2-0.008, cy-ww2/2, ti+0.016, ww2, '#fff');
+      ws += `<rect x="${f3(xC-ds2/2)}" y="${f3(cy-ww2/2)}" width="${f3(ds2)}" height="${f3(ww2)}" fill="#fff" stroke="#000" stroke-width="0.025"/>`;
+      ws += line(xC, cy-ww2/2, xC, cy+ww2/2, .022);
+      ws += line(xC-ds2/2, cy-ww2/2, xC+ds2/2, cy-ww2/2, .025)+line(xC-ds2/2, cy+ww2/2, xC+ds2/2, cy+ww2/2, .025);
+      s += `<g data-drag="bwin:0" style="cursor:ns-resize">${ws}</g>`;
     }
     if(b.flip) s=`<g transform="translate(${f3(bw)},0) scale(-1,1)">${s}</g>`;
     S += `<g data-drag="bath" transform="${onWall(b.attach,off)}">${s}</g>`;
@@ -6320,7 +6457,10 @@ function dragCapture(id){
   if(kind==='door'){ const it=state.doors[+idx]; return it?{o:it.off}:null; }
   if(kind==='part'){ const p=state.parts[+idx]; return p?{o:p.x}:null; }
   if(kind==='pdoor'){ const p=state.parts[+idx]; return p?{o:p.doorOff}:null; }
+  if(kind==='pxdoor'){ const [pi,k]=idx.split('_'); const p=state.parts[+pi], d=p&&(p.xdoors||[])[+k]; return d?{o:d.off}:null; }
+  if(kind==='partA'||kind==='partB'){ const p=state.parts[+idx]; if(!p) return null; const [pa,pb]=partSpan(p); return {a:pa,b:pb}; }
   if(kind==='bdoor') return {o:state.bath.doorOff||0.04};
+  if(kind==='bwin') return lastBathWin?{o:lastBathWin.pos, w:lastBathWin.wall}:null;
   if(kind==='bath') return {o:state.bath.x};
   if(kind==='kit')  return {o:state.kitchen.off};
   if(kind==='ac'){ const a=state.acs[+idx]; return a?{o:a.off}:null; }
@@ -6354,6 +6494,18 @@ function dragApply(id, v, dx, dy){
   else if(kind==='door'){ const it=state.doors[+idx]; if(it) it.off=S5(v.o+axis(it.wall)); }
   else if(kind==='part'){ const p=state.parts[+idx]; if(p) p.x=S5(v.o+(p.dir==='h'?dy:dx)); }
   else if(kind==='pdoor'){ const p=state.parts[+idx]; if(p) p.doorOff=S5(v.o+(p.dir==='h'? -dx : -dy)); }
+  else if(kind==='pxdoor'){ const [pi,k]=idx.split('_'); const p=state.parts[+pi], d=p&&(p.xdoors||[])[+k]; if(d) d.off=S5(v.o+(p.dir==='h'? -dx : -dy)); }
+  else if(kind==='partA'||kind==='partB'){
+    const p=state.parts[+idx]; if(!p) return;
+    const t=T_OUT, mx=axisMaxLen(p)-t, d=(p.dir==='h'?dx:dy);
+    /* שומרים את מיקום הדלתות ביחס לקצה b — כשמזיזים את b, מזיזים גם את off כדי שהדלת לא תזוז */
+    if(kind==='partA'){ p.from=r2(clamp(S5(v.a+d), t, v.b-0.1)); p.to=v.b; }
+    else {
+      const nb=r2(clamp(S5(v.b+d), v.a+0.1, mx)), sh=r2(nb-(dragCtx.lastB??v.b));
+      p.from=v.a; p.to=nb; dragCtx.lastB=nb;
+      if(sh){ p.doorOff=r2(p.doorOff+sh); (p.xdoors||[]).forEach(x=>x.off=r2(x.off+sh)); }
+    }
+  }
   else if(kind==='bdoor'){
     const [wx2,wy2]=bathDoorAxis();
     state.bath.doorOff=S5(clamp(v.o + dx*wx2 + dy*wy2, 0.04, 3));
@@ -6362,6 +6514,13 @@ function dragApply(id, v, dx, dy){
   else if(kind==='note'){ const nt=(state.notes||[])[+idx]; if(nt){ nt.x=S5(v.x+dx); nt.y=S5(v.y+dy); } }
   else if(kind==='noteT'){ const nt=(state.notes||[])[+idx]; if(nt){ nt.tx=S5(v.x+dx); nt.ty=S5(v.y+dy); } }
   else if(kind==='bath'){ state.bath.x=S5(v.o+(isH(state.bath.attach)?dx:dy)); }
+  else if(kind==='bwin'){
+    const at=state.bath.attach; let ldx, ldy;
+    if(at==='top'){ ldx=dx; ldy=dy; } else if(at==='bottom'){ ldx=dx; ldy=-dy; }
+    else if(at==='left'){ ldx=dy; ldy=dx; } else { ldx=dy; ldy=-dx; }
+    if(state.bath.flip) ldx=-ldx;
+    state.bath.vwin={wall:v.w, pos:S5(v.o+(v.w==='out'?ldx:ldy))};
+  }
   else if(kind==='notch'||kind==='notchA'||kind==='notchB'){
     const n=notchesOf()[+idx]; if(!n) return;
     const along=isH(n.wall)? dx : dy;
