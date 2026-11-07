@@ -5807,7 +5807,7 @@ function autoPriceCalc(){
   const mq=(a,v0,v1)=>Math.max(0,v0+(a-18)*(v1-v0)/30), w=1.1;
   const dd=x=>{const P=[[12,8],[18,12],[24,18],[28,24],[30,25],[40,35],[48,45]];if(x<=12)return Math.max(1,Math.ceil(8*x/12));for(let k=1;k<P.length;k++){if(x<=P[k][0])return Math.ceil(P[k-1][1]+(x-P[k-1][0])*(P[k][1]-P[k-1][1])/(P[k][0]-P[k-1][0]));}return Math.ceil(45+(x-48)*1.25);};
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,per=2*(W+L),ad=state.addons||{};
-    if(state.mamad){return {cost:a*5000+25000+((state.acs||[]).length?2700:0),profit:a*1000,mamad:true};}
+    if(state.mamad){return {cost:a*5000+25000+((state.acs||[]).length?2700:0),lab:25000,profit:a*1000,mamad:true};}
     const B=window.DE_BOM?DE_BOM.mat({am:a,W:W,L:L,finish:'premium',floor:ad.ceramic?'ceramic':'spc'}):null,G=g=>DE_BOM.grpSum(B,g);
     let c=B?G('shell')+3000*Math.max(1,(state.doors||[]).length):(mq(a,4810,8567)+mq(a,1750,4130)+mq(a,500,1500)+2*L*60+mq(a,1400,3200)+1500+400)*w+per*3*70*w+3000*Math.max(1,(state.doors||[]).length);
     if(ad.gibsIn)c+=B?G('gyp'):(Math.ceil((per*3+a)/2.88)*50+mq(a,1760,3300)+mq(a,600,1000)+mq(a,640,960))*w;
@@ -5821,12 +5821,13 @@ function autoPriceCalc(){
     (state.acs||[]).forEach(x=>{c+=x.prepOnly?1000:2700;});
     c+=(state.parts||[]).length*1500;
     c+=B?G('elec'):(1500+mq(a,800,1500)+mq(a,220,330)+Math.ceil(a/3)*20+Math.ceil(a/6)*150+50)*w;
-    c+=dd(a)*1400;
-    return {cost:c,profit:a*1000,mamad:false};};
+    const lab=dd(a)*1400;
+    return {cost:c+lab,lab:lab,profit:a*1000,mamad:false};};
   const mods=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules:null;
-  let cost=1000,profit=0,allMamad=true;const rs=mods?mods.map(m=>withModuleState(m,one)):[one()];
-  rs.forEach(r=>{cost+=r.cost;profit+=r.profit;if(!r.mamad)allMamad=false;});
-  if(!allMamad)cost+=8000; if(rs.length>1)cost+=(rs.length-1)*(15000+6000);
+  let cost=1000,profit=0,lab=0,allMamad=true;const rs=mods?mods.map(m=>withModuleState(m,one)):[one()];
+  rs.forEach(r=>{cost+=r.cost;lab+=r.lab||0;profit+=r.profit;if(!r.mamad)allMamad=false;});
+  if(!allMamad){cost+=8000;lab+=8000;} if(rs.length>1){cost+=(rs.length-1)*(15000+6000);lab+=(rs.length-1)*(15000+6000);}
+  window._sPP={m:cost-lab,w:lab,p:profit};
   return Math.round((cost+profit)*1.18/100)*100;
 }
 /* דף הזמנות לספקים (פנימי) — כמויות, מחירי יעד וספק לכל פריט, לפי השרטוט */
@@ -5858,6 +5859,8 @@ function sirtutOrders(){
   DE_BOM.openOrders({lines,date:new Date().toLocaleDateString('he-IL'),spec:mods?n+' יחידות':(W+'×'+L+' מ׳ · '+(W*L)+' מ״ר'),client:cn});
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='ordersBtn')sirtutOrders();});
+/* חלוקת פעימות לפי מבנה העלות: 1 = חומרים וציוד, 2 = עבודה והובלה, 3 = רווח העסק (1,000 ₪ למ״ר) — כולל מע״מ. מחזיר [p1,p2,p3,%1,%2,%3] */
+function payInst(fp){fp=+fp||0;if(!(fp>0))return [0,0,0,0,0,0];try{autoPriceCalc();}catch(e){}const P=window._sPP,S=P?P.m+P.w+P.p:0;if(!(S>0)){const a=Math.round(fp/3);return [a,a,fp-2*a,33,33,34];}const p3=Math.round(fp*P.p/S),p2=Math.round(fp*P.w/S),p1=fp-p2-p3,c2=Math.round(p2*100/fp),c3=Math.round(p3*100/fp);return [p1,p2,p3,100-c2-c3,c2,c3];}
 setInterval(function(){try{const f=document.getElementById('finalPrice');if(f){const v=autoPriceCalc();f.placeholder=v>0?('אוטומטי: '+v.toLocaleString('he-IL')):'';}}catch(e){}},1500);
 /* דמי אחסון יומיים לפי גודל המבנה: מחיר אחסון מקובל ~35 ₪ לקוב לחודש × נפח המבנה (שטח × 3 מ׳ גובה)
    = כ־3.5 ₪ למ״ר ליום, לפני מע״מ; מינימום 60 ₪ ליום. סכום סביר וקשור לעלות אמיתית — כדי שיחזיק משפטית. */
@@ -5898,7 +5901,7 @@ function agreeTermsSvg(part){ part=part||0;
   /* \u05D3\u05D5\u05D3 \u05D1\u05D9\u05E7\u05E9 \u05DC\u05E6\u05D9\u05D9\u05DF \u05D1\u05E9\u05E4\u05D4 \u05DE\u05E7\u05E6\u05D5\u05E2\u05D9\u05EA \u05E9\u05D4\u05D4\u05E1\u05DB\u05DD \u05DB\u05EA\u05D5\u05D1 \u05D1\u05DC\u05E9\u05D5\u05DF \u05D6\u05DB\u05E8 \u05D5\u05E9\u05D6\u05D4 \u05D7\u05DC \u05D2\u05DD \u05E2\u05DC \u05E0\u05D5\u05E9\u05D0 \u05E0\u05E7\u05D1\u05D4 -- \u05D4\u05E2\u05E8\u05D4 \u05EA\u05E7\u05E0\u05D9\u05EA \u05D5\u05E1\u05D8\u05E0\u05D3\u05E8\u05D8\u05D9\u05EA \u05D1\u05DE\u05E1\u05DE\u05DB\u05D9\u05DD \u05DE\u05E9\u05E4\u05D8\u05D9\u05D9\u05DD \u05D1\u05D9\u05E9\u05E8\u05D0\u05DC. \u05DE\u05E7\u05D5\u05DE\u05D4: \u05DE\u05D9\u05D3 \u05DE\u05EA\u05D7\u05EA \u05DC\u05DB\u05D5\u05EA\u05E8\u05EA, \u05DC\u05E4\u05E0\u05D9 \u05E4\u05EA\u05D9\u05D7 \u05D4\u05D4\u05E6\u05D4\u05E8\u05D4 \u05D4\u05E8\u05E9\u05DE\u05D9\u05EA \u05E9\u05DC \u05D4\u05D4\u05E1\u05DB\u05DD \u05D5\u05DC\u05E4\u05E0\u05D9 \u05E1\u05E2\u05D9\u05E3 1 -- \u05DC\u05D0 \u05D3\u05D5\u05D7\u05E7\u05EA \u05D0\u05EA \u05E9\u05D0\u05E8 \u05D4\u05EA\u05D5\u05DB\u05DF (\u05DB\u05DC \u05E9\u05D0\u05E8 \u05D4-y \u05D4\u05DD \u05E7\u05D1\u05D5\u05E2\u05D9\u05DD \u05DB\u05E8\u05D2\u05D9\u05DC), \u05D5\u05E0\u05D1\u05D3\u05E7 \u05D1-TEST W \u05E9\u05D4\u05E2\u05DE\u05D5\u05D3 \u05E2\u05D3\u05D9\u05D9\u05DF \u05E2\u05D5\u05DE\u05D3 \u05D1\u05EA\u05E7\u05E6\u05D9\u05D1 \u05D4\u05E7\u05D9\u05D9\u05DD. */
   B += agT(105,52.6,'\u05D4\u05D0\u05DE\u05D5\u05E8 \u05D1\u05DE\u05E1\u05DE\u05DA \u05D6\u05D4 \u05D1\u05DC\u05E9\u05D5\u05DF \u05D6\u05DB\u05E8 \u05D4\u05D5\u05D0 \u05DE\u05D8\u05E2\u05DE\u05D9 \u05E0\u05D5\u05D7\u05D5\u05EA \u05D1\u05DC\u05D1\u05D3, \u05D5\u05DE\u05EA\u05D9\u05D9\u05D7\u05E1 \u05DC\u05E0\u05E9\u05D9\u05DD \u05D5\u05DC\u05D2\u05D1\u05E8\u05D9\u05DD \u05DB\u05D0\u05D7\u05D3.',2.7,'','#555','middle');
   if(!part) B += agT(196,57,'\u05D4\u05E6\u05D4\u05E8\u05EA \u05D4\u05E6\u05D3\u05D3\u05D9\u05DD:',3.9,'700');
-  const _fpN=parseFloat(state.finalPrice),_fpOk=!isNaN(_fpN)&&_fpN>0,_a3n=_fpOk?Math.round(_fpN/3):0,_lastN=_fpOk?_fpN-2*_a3n:0,_ils=v=>v?Math.round(v).toLocaleString('he-IL')+' ₪':'______ ₪',_stDay=state.storageDay||storageDayCalc((+state.W||0)*(+state.L||0));
+  const _fpN=parseFloat(state.finalPrice),_fpOk=!isNaN(_fpN)&&_fpN>0,_a3n=_fpOk?Math.round(_fpN/3):0,_lastN=_fpOk?payInst(_fpN)[2]:0,_ils=v=>v?Math.round(v).toLocaleString('he-IL')+' ₪':'______ ₪',_stDay=state.storageDay||storageDayCalc((+state.W||0)*(+state.L||0));
   const P1=[["1. מעמד העסק:",1],
     ["2. דרך ארץ מבנים יבילים (עוסק מורשה 305260986, להלן: \"העסק\") פועלת כגורם מתווך ומתאם בין הלקוח לבין יצרן המבנה, המוביל ובעלי המקצוע המבצעים (להלן יחד: \"הגורמים המבצעים\"). העסק אינו יצרן המבנה, אינו המוביל ואינו מבצע עבודות בשטח. הלקוח מאשר כי מעמד זה הובהר לו לפני ההתקשרות, וכי פרטי הגורמים המבצעים יימסרו לו לפי בקשתו.",0],
     ["3. פגישת ייעוץ ותשלום ראשוני:",1],
@@ -5981,15 +5984,15 @@ function agreeTermsSvg(part){ part=part||0;
   const bTop=y, boxH=27;
   if(bTop+boxH>281) console.warn('\u05D4\u05E1\u05DB\u05DD: \u05EA\u05D9\u05D1\u05D5\u05EA \u05D4\u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD/\u05D7\u05E9\u05D1\u05D5\u05DF \u05DE\u05EA\u05E0\u05D2\u05E9\u05D5\u05EA \u05D1\u05DB\u05D5\u05EA\u05E8\u05EA \u05D4\u05EA\u05D7\u05EA\u05D5\u05E0\u05D4 \u2014 \u05D4\u05E8\u05E9\u05D9\u05DE\u05D4 \u05D0\u05E8\u05D5\u05DB\u05D4 \u05DE\u05D3\u05D9 \u2014 \u05D9\u05E9 \u05DC\u05DB\u05D5\u05D5\u05E0\u05DF \u05D0\u05EA \u05D4\u05E8\u05D9\u05D5\u05D5\u05D7\u05D9\u05DD \u05DE\u05D7\u05D3\u05E9.');
   const fp2=parseFloat(state.finalPrice);
-  const a3=(!isNaN(fp2)&&fp2>0)? Math.round(fp2/3) : 0;
+  const a3=(!isNaN(fp2)&&fp2>0)? Math.round(fp2/3) : 0, _pi=payInst(fp2);
   const pv=v=> v? v.toLocaleString('he-IL')+' \u20AA' : '________ \u20AA';
   /* \u05DE\u05D9\u05DE\u05D9\u05DF: \u05D7\u05DC\u05D5\u05E7\u05EA \u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD */
   B += `<rect x="106" y="${f3(bTop)}" width="90" height="${f3(boxH)}" rx="1.8" fill="#fafaf9" stroke="#9ca3af" stroke-width="0.35"/>`;
   let ty=bTop+6.2;
   B += agT(192,ty,'\u05D7\u05DC\u05D5\u05E7\u05EA \u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD (\u05DB\u05D5\u05DC\u05DC \u05DE\u05E2\u05F4\u05DE):',3.7,'700'); ty+=6.2;
-  B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u05D1\u05DE\u05E2\u05DE\u05D3 \u05D4\u05D4\u05D6\u05DE\u05E0\u05D4: '+pv(a3),3.35); ty+=6.0;
-  B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E9\u05E0\u05D9\u05D4 \u05DC\u05D0\u05D7\u05E8 \u05D1\u05D9\u05E6\u05D5\u05E2 \u05D4\u05E2\u05D1\u05D5\u05D3\u05D4 \u05D1\u05DE\u05E4\u05E2\u05DC: '+pv(a3),3.35); ty+=6.0;
-  B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E9\u05DC\u05D9\u05E9\u05D9\u05EA \u05DC\u05E4\u05E0\u05D9 \u05D4\u05E0\u05E4\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4: '+pv(a3? fp2-2*a3:0),3.35);
+  B += agT(192,ty,'פעימה 1 · בהזמנה — חומרים וציוד'+(_pi[0]?' ('+_pi[3]+'%)':'')+': '+pv(_pi[0]),3.35); ty+=6.0;
+  B += agT(192,ty,'פעימה 2 · בסיום הייצור — עבודה והובלה'+(_pi[1]?' ('+_pi[4]+'%)':'')+': '+pv(_pi[1]),3.35); ty+=6.0;
+  B += agT(192,ty,'פעימה 3 · לפני ההנפה — רווח העסק'+(_pi[2]?' ('+_pi[5]+'%)':'')+': '+pv(_pi[2]),3.35);
   /* \u05DE\u05E9\u05DE\u05D0\u05DC: \u05E4\u05E8\u05D8\u05D9 \u05D7\u05E9\u05D1\u05D5\u05DF */
   B += `<rect x="14" y="${f3(bTop)}" width="88" height="${f3(boxH)}" rx="1.8" fill="#fafaf9" stroke="#9ca3af" stroke-width="0.35"/>`;
   let by=bTop+6.2;
