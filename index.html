@@ -232,7 +232,7 @@
   .rowFlash{animation:rowFlash 1.8s ease-out}
   @keyframes rowFlash{0%,35%{box-shadow:0 0 0 3px #f59e0b; background:#fff7e6}100%{box-shadow:0 0 0 0 transparent}}
 </style>
-<script src="https://derech-eretz.net/bom.js"></script>
+<script src="https://derech-eretz.net/bom.js?v=20261107e"></script>
 </head>
 <body>
 <header class="app">
@@ -5836,7 +5836,7 @@ function sirtutItems(){
   const dd=x=>{const P=[[12,8],[18,12],[24,18],[28,24],[30,25],[40,35],[48,45]];if(x<=12)return Math.max(1,Math.ceil(8*x/12));for(let k=1;k<P.length;k++){if(x<=P[k][0])return Math.ceil(P[k-1][1]+(x-P[k-1][0])*(P[k][1]-P[k-1][1])/(P[k][0]-P[k-1][0]));}return Math.ceil(45+(x-48)*1.25);};
   const WU={'מוטות':1,'מ״ר':1,'מ׳':1,'לוחות':1,'חבילות':1,'דליים':1,'גלילים':1};
   const G={mat:{n:'חומרים',r:[]},eq:{n:'ציוד והתקנות',r:[]},lab:{n:'עבודה',r:[]},log:{n:'הובלה והצבה',r:[]}},ord=[];
-  const add=(g,name,q,unit,p,sup,oq)=>{if(!(q>0))return;G[g].r.push([name,q,unit,p,q*p]);if(sup){const o=oq||q;ord.push({name,q:o,unit,p,sup,sum:o*p});}};
+  const add=(g,name,q,unit,p,sup,oq)=>{if(!(q>0))return;G[g].r.push([name,q,unit,p,q*p,sup||'']);if(sup){const o=oq||q;ord.push({name,q:o,unit,p,sup,sum:o*p});}};
   let profit=0,n=0,allMamad=true;
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,ad=state.addons||{};if(a<=0)return 0;n++;profit+=a*1000;
     if(state.mamad){add('eq','ממ״ד יביל לפי ת״י 4422',a,'מ״ר',5000,'factory');add('log','הובלה ומנוף משקולות לממ״ד',1,'הובלה',25000,'trans');if((state.acs||[]).length)add('eq','מזגן כולל התקנה',1,'יח׳',2700,'ac');return 1;}
@@ -5871,25 +5871,26 @@ function sirtutOrders(){
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='ordersBtn')sirtutOrders();});
 /* עמוד/י "מפרט ופירוט עלויות" בהסכם — כל החומרים, הכמויות והמחירים, וניהול ותיאום הפרויקט, עד הסכום הסופי */
+function y0Hdr(pn){return pn===1?56.5:53;}
 function bomSvgs(){
   const it=sirtutItems();if(!it||!it.groups.length)return [];
   const fmt=v=>Math.round(v).toLocaleString('he-IL')+' ₪',fq=v=>(Math.round(v*100)/100).toLocaleString('he-IL');
   const fpN=parseFloat(state.finalPrice),auto=autoPriceCalc(),fp=(!isNaN(fpN)&&fpN>0)?fpN:auto;
   const net=fp/1.18,vat=fp-net,mgmt=net-it.cost;
   const rows=[];
-  it.groups.forEach(g=>{rows.push({t:'g',l:g.n,v:fmt(g.sum)});g.r.forEach(x=>rows.push({t:'i',l:x[0]+(x[2]?' · '+fq(x[1])+' '+x[2]+' × '+fq(x[3])+' ₪':''),v:fmt(x[4])}));});
+  it.groups.forEach(g=>{rows.push({t:'g',l:g.n,v:fmt(g.sum)});g.r.forEach(x=>rows.push({t:'i',l:x[0]+(x[2]?' · '+fq(x[1])+' '+x[2]+' × '+fq(x[3])+' ₪':''),v:fmt(x[4]),sp:(DE_BOM.supName?DE_BOM.supName(x[5]):((DE_BOM.SUP[x[5]]||{}).t?DE_BOM.SUP[x[5]].n:''))}));});
   rows.push({t:'s',l:'סה״כ חומרים, ציוד, עבודה והובלה',v:fmt(it.cost)});
   rows.push({t:'s',l:'ניהול ותיאום הפרויקט — תכנון, תיאום וליווי עד המסירה',v:fmt(mgmt)});
   rows.push({t:'s',l:'סה״כ לפני מע״מ',v:fmt(net)});
   rows.push({t:'s',l:'מע״מ 18%',v:fmt(vat)});
   rows.push({t:'T',l:'סה״כ כולל מע״מ',v:fmt(fp)});
   const pages=[];let B=null,y=0,pn=0;
-  const start=()=>{B=agHeader();pn++;B+=agT(105,46,'מפרט ופירוט עלויות'+(pn>1?' (המשך)':''),5.6,'700','#111','middle');if(pn===1){B+=agT(105,52.5,'כל החומרים, הכמויות והמחירים לפני מע״מ — לפי הסקיצה',3.1,'','#555','middle');}y=pn===1?60:58;};
-  const end=last=>{if(last)B+=agT(105,279.5,'הפירוט מוצג לשקיפות. מפרט הביצוע הסופי נקבע מול היצרן (סעיפים 9–10), והמחיר המחייב הוא הסכום הסופי שבהסכם.',2.6,'','#666','middle');B+=agFooter();pages.push(agPage(B));};
+  const start=()=>{B=agHeader();pn++;B+=agT(105,46,'מפרט ופירוט עלויות'+(pn>1?' (המשך)':''),5.6,'700','#111','middle');if(true){B+=agT(58,y0Hdr(pn),'ספק',2.7,'700','#555')+agT(14,y0Hdr(pn),'סכום',2.7,'700','#555','end');}if(pn===1){B+=agT(105,52.5,'כל החומרים, הכמויות, המחירים לפני מע״מ והספקים — לפי הסקיצה',3.1,'','#555','middle');}y=pn===1?60:58;};
+  const end=last=>{if(last)B+=agT(105,279.5,'הפירוט לשקיפות; מפרט הביצוע נקבע מול היצרן (סעיפים 9–10) והמחיר המחייב הוא הסכום הסופי. אין לפנות לספקים ללא אישור העסק (סעיף 21).',2.6,'','#666','middle');B+=agFooter();pages.push(agPage(B));};
   start();
   rows.forEach((r,i)=>{const h=r.t==='i'?4.1:r.t==='T'?9:6;if(y+h>275){end(false);start();}
     if(r.t==='g'){y+=1;B+=agT(196,y,r.l,3.6,'700','#12314e')+agT(14,y,r.v,3.6,'700','#12314e','end')+agLine(14,y+1.5,196);y+=5;}
-    else if(r.t==='i'){B+=agT(193,y,r.l,2.85,'','#333')+agT(14,y,r.v,2.85,'','#333','end');y+=4.1;}
+    else if(r.t==='i'){B+=agT(193,y,r.l,2.85,'','#333')+(r.sp?agT(58,y,r.sp,2.55,'','#0b5cad'):'')+agT(14,y,r.v,2.85,'','#333','end');y+=4.1;}
     else if(r.t==='s'){y+=0.8;B+=agT(196,y,r.l,3.3,'700','#12314e')+agT(14,y,r.v,3.3,'700','#12314e','end');y+=5.2;}
     else{y+=2;B+='<rect x="14" y="'+(y-5).toFixed(2)+'" width="182" height="8" rx="1.5" fill="#12314e"/>'+agT(193,y,r.l,3.9,'700','#fff')+agT(17,y,r.v,3.9,'700','#fff','end');y+=8;}});
   end(true);return pages;
