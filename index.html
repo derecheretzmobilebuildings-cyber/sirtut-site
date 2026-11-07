@@ -5804,13 +5804,13 @@ const agOpt=(bx,y,label,checked)=> agBox(bx,y,checked)+agT(bx-1.6,y,label,3.4);
 /* מחיר אוטומטי לפי הסקיצה — אותו מודל עלות כמו מערכת הצעת המחיר באתר (עלות + 1,000 ₪ רווח למ״ר + מע״מ).
    משמש כשלא הוזן "סכום סופי" ידנית; הסכומים בהסכם (פעימות, פיצוי מוסכם, שטר חוב) מחושבים ממנו. */
 /* קיבוץ יחידות לפי מבנה: יחידות עם אותו grp מחוברות (הובלה אחת + הנפה ליחידה נוספת + חיבור); ממ״ד מתומחר בנפרד */
-function _sGroups(){const ms=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules.map(m=>m.data):[state];const G={},ord=[];ms.forEach(d=>{if(!d||d.mamad)return;const k=String(d.grp||0);if(!G[k]){G[k]=[];ord.push(k);}G[k].push(d);});let tr=0,conn=0;const gs=ord.map(k=>{const a=G[k],n=a.length,t0=a.find(d=>+d.trCost>0),t=t0?+t0.trCost:8000+6000*(n-1);tr+=t;conn+=15000*(n-1);return {n,t};});return {tr,conn,gs};}
+function _sGroups(){const ms=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules.map(m=>m.data):[state];/* ממ״ד (יחידה נפרדת או קיר ממ״ד בתוך מבנה) = תמיד מנוף משקולות */const hasMM=ms.some(d=>d&&(d.mamad||(d.parts||[]).some(p=>p&&p.mamad)));const G={},ord=[],mms=[];ms.forEach(d=>{if(!d)return;if(d.mamad){mms.push(d);return;}const k=String(d.grp||0);if(!G[k]){G[k]=[];ord.push(k);}G[k].push(d);});let tr=0,conn=0,first=true;const gs=ord.map(k=>{const a=G[k],n=a.length,t0=a.find(d=>+d.trCost>0);const t=t0?+t0.trCost:(first?(hasMM?25000:8000)+6000*(n-1):6000*n);first=false;tr+=t;conn+=15000*(n-1);return {n,t,h:hasMM};});const mt=new Map();mms.forEach(d=>{const t=(+d.trCost>0)?+d.trCost:(first?25000:6000);first=false;mt.set(d,t);});return {tr,conn,gs,mt,hasMM};}
 function autoPriceCalc(){
   /* מודל עלות לפי מחירי שוק בישראל (נוב׳ 2026) — זהה למערכת הצעת המחיר באתר */
   const mq=(a,v0,v1)=>Math.max(0,v0+(a-18)*(v1-v0)/30), w=1.1;
   const dd=x=>{const P=[[12,8],[18,12],[24,18],[28,24],[30,25],[40,35],[48,45]];if(x<=12)return Math.max(1,Math.ceil(8*x/12));for(let k=1;k<P.length;k++){if(x<=P[k][0])return Math.ceil(P[k-1][1]+(x-P[k-1][0])*(P[k][1]-P[k-1][1])/(P[k][0]-P[k-1][0]));}return Math.ceil(45+(x-48)*1.25);};
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,per=2*(W+L),ad=state.addons||{};
-    if(state.mamad){const _mt=(+state.trCost>0)?+state.trCost:25000;return {cost:a*5000+_mt+((state.acs||[]).length?2700:0),lab:_mt,profit:a*1000,mamad:true};}
+    if(state.mamad){const _mt=_sGroups().mt.get(state)||25000;return {cost:a*5000+_mt+((state.acs||[]).length?2700:0),lab:_mt,profit:a*1000,mamad:true};}
     const B=window.DE_BOM?DE_BOM.mat({am:a,W:W,L:L,finish:'premium',floor:ad.ceramic?'ceramic':'spc'}):null,G=g=>DE_BOM.grpSum(B,g);
     let c=B?G('shell')+3000*Math.max(1,(state.doors||[]).length):(mq(a,4810,8567)+mq(a,1750,4130)+mq(a,500,1500)+2*L*60+mq(a,1400,3200)+1500+400)*w+per*3*70*w+3000*Math.max(1,(state.doors||[]).length);
     if(ad.gibsIn)c+=B?G('gyp'):(Math.ceil((per*3+a)/2.88)*50+mq(a,1760,3300)+mq(a,600,1000)+mq(a,640,960))*w;
@@ -5846,7 +5846,7 @@ function sirtutItems(){
   let profit=0,n=0,allMamad=true;
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,ad=state.addons||{},pm=2*(W+L);if(a<=0)return 0;n++;profit+=a*1000;
     const tag=mods?' · יחידה '+n:'';
-    if(state.mamad){item('eq','ממ״ד יביל לפי ת״י 4422'+tag,[D('ממ״ד יביל לפי ת״י 4422',a,'מ״ר',5000,'factory'),(state.acs||[]).length?D('מזגן כולל התקנה',1,'יח׳',2700,'ac'):null]);item('log','הובלה ומנוף משקולות לממ״ד'+tag,[D('הובלה ומנוף משקולות',1,'הובלה',(+state.trCost>0)?+state.trCost:25000,'trans')]);return 1;}
+    if(state.mamad){item('eq','ממ״ד יביל לפי ת״י 4422'+tag,[D('ממ״ד יביל לפי ת״י 4422',a,'מ״ר',5000,'factory'),(state.acs||[]).length?D('מזגן כולל התקנה',1,'יח׳',2700,'ac'):null]);item('log','הובלה ומנוף משקולות לממ״ד'+tag,[D('הובלה ומנוף משקולות',1,'הובלה',_sGroups().mt.get(state)||25000,'trans')]);return 1;}
     allMamad=false;
     const B=DE_BOM.mat({am:a,W:W,L:L,finish:'premium',floor:ad.ceramic?'ceramic':'spc'});
     const grp=k=>{let w=0;const ds=B.filter(x=>x.grp===k).map(x=>{w+=x.sum;return D(x.name,x.q,x.unit,x.p,x.sup,WU[x.unit]?Math.ceil(x.q*1.1):x.q);});if(w>0)ds.push(['פחת וחיתוכים 10%',0,'',0,w*0.1,'']);return ds;};
@@ -5867,7 +5867,7 @@ function sirtutItems(){
     ord.push({name:'ימי עבודה של צוות ייצור (2 עובדים)',q:dd(a),unit:'ימים',p:1400,sup:'factory',sum:dd(a)*1400});item('lab','עבודות ייצור, הרכבה וגמר'+tag,[['צוות הייצור ובעלי המקצוע (חשמל, אינסטלציה ועוד) · הערכת עלות',0,'',0,dd(a)*1400,'']]);return 1;};
   if(mods)mods.forEach(m=>withModuleState(m,one));else one();
   item('mat','הובלת חומרים למפעל',[],1000);
-  const _T=_sGroups(),_many=_T.gs.length>1;_T.gs.forEach((g,gi)=>{const lb=_many?' · מבנה '+(gi+1):'';item('log','הובלה ומנוף'+lb,[D('הובלה ומנוף מהמפעל לאתר'+(g.n>1?' · '+g.n+' יחידות מחוברות':''),1,'הובלה',g.t,'trans')]);});
+  const _T=_sGroups(),_many=_T.gs.length>1;_T.gs.forEach((g,gi)=>{const lb=_many?' · מבנה '+(gi+1):'';item('log',(g.h?'הובלה ומנוף משקולות':'הובלה ומנוף')+lb,[D((g.h?'הובלה ומנוף משקולות':'הובלה ומנוף')+' מהמפעל לאתר'+(g.n>1?' · '+g.n+' יחידות מחוברות':''),1,'הובלה',g.t,'trans')]);});
   if(+state.siteCost>0){ord.push({name:'חיבור תשתיות והכנת שטח באתר',q:1,unit:'עבודה',p:+state.siteCost,sup:'site',sum:+state.siteCost});item('site','חיבור תשתיות והכנת שטח',[['חיבור מים, ביוב וחשמל והכנת שטח · לפי הערכת עלות',0,'',0,+state.siteCost,'']]);}
   _T.gs.forEach((g,gi)=>{if(g.n>1)item('lab','חיבור בין '+g.n+' יחידות המבנה'+(_many?' · מבנה '+(gi+1):''),[D('חיבור יחידות באתר',g.n-1,'חיבורים',15000,'factory')]);});
   const groups=Object.values(G).filter(g=>g.it.length).map(g=>({n:g.n,it:g.it,sum:g.it.reduce((s,x)=>s+x.sum,0)}));
