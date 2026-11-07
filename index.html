@@ -5877,19 +5877,22 @@ function sirtutOrders(){
   DE_BOM.openOrders({lines:it.orders,date:new Date().toLocaleDateString('he-IL'),spec:it.n>1?it.n+' יחידות':(W+'×'+L+' מ׳ · '+(W*L)+' מ״ר'),client:cn});
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='ordersBtn')sirtutOrders();});
-/* עמוד/י "מפרט ופירוט עלויות" בהסכם — באותו עיצוב כמו הצעת המחיר באתר */
+/* עמוד/י "מפרט ופירוט עלויות" בהסכם — באותו עיצוב כמו הצעת המחיר באתר; גופן קריא (גוף ~11 נק׳), בלי צפיפות */
 function bomSvgs(){
   const it=sirtutItems();if(!it||!it.groups.length)return [];
   const fmt=v=>Math.round(v).toLocaleString('he-IL')+' ₪',fq=v=>(Math.round(v*100)/100).toLocaleString('he-IL'),SN=k=>(k&&DE_BOM.supName?DE_BOM.supName(k):'');
   const fpN=parseFloat(state.finalPrice),fp=(!isNaN(fpN)&&fpN>0)?fpN:autoPriceCalc();
   const net=fp/1.18,vat=fp-net,mgmt=net-it.cost;
-  const NAVY='#12314e',MUT='#64748b',GOLD='#c8a24a',BG='#eef3f8',LN='#e2e8f0';
+  const NAVY='#12314e',MUT='#475569',GOLD='#c8a24a',BG='#eef3f8',LN='#e2e8f0';
   const rc=(x,y,w,h,f,r)=>'<rect x="'+x+'" y="'+y.toFixed(2)+'" width="'+w+'" height="'+h+'" rx="'+(r||0)+'" fill="'+f+'"/>';
   const ln=y=>'<line x1="14" y1="'+y.toFixed(2)+'" x2="196" y2="'+y.toFixed(2)+'" stroke="'+LN+'" stroke-width="0.3"/>';
+  const tw=(t,f)=>{let w=0;for(const ch of String(t))w+=(/[ :.,·|()+׳״'"\-]/.test(ch)?0.95:/[0-9]/.test(ch)?1.85:1.98);return w*f/3.7;};
+  const wrap=(t,f,maxW)=>{const out=[];let cur='';String(t).split(/\s+/).filter(Boolean).forEach(wd=>{const tr=cur?cur+' '+wd:wd;if(cur&&tw(tr,f)>maxW){out.push(cur);cur=wd;}else cur=tr;});if(cur)out.push(cur);return out.length?out:[''];};
   const sW=+state.W||0,sL=+state.L||0,spec=(it.n>1?it.n+' יחידות מבנה':(sW+'×'+sL+' מ׳ · '+fq(sW*sL)+' מ״ר'));
+  const F={sec:4.4,g:4.1,i:3.9,d:3.4,ds:3.0,s:3.9,ps:3.1,T:4.4,Tv:5.4};
   const rows=[{t:'sec',l:'פירוט עלויות מלא (לפני מע״מ) — חומרים, עבודה וניהול הפרויקט'}];
   it.groups.forEach(g=>{const one=g.it.length===1;rows.push({t:'g',l:one?g.n+' · '+g.it[0].l:g.n,v:fmt(g.sum)});
-    g.it.forEach(x=>{if(!one)rows.push({t:'i',l:x.l,v:fmt(x.sum)});x.det.forEach(d=>{const sn=SN(d[5]);rows.push({t:'d',l:d[0]+(d[1]?' · '+fq(d[1])+' '+d[2]+' × '+fq(d[3])+' ₪':'')+(sn?' · ספק: '+sn:''),v:fmt(d[4])});});});});
+    g.it.forEach(x=>{if(!one)rows.push({t:'i',l:x.l,v:fmt(x.sum)});x.det.forEach(d=>{rows.push({t:'d',l:d[0]+(d[1]?' · '+fq(d[1])+' '+d[2]+' × '+fq(d[3])+' ₪':''),sp:SN(d[5]),v:fmt(d[4])});});});});
   rows.push({t:'p',l:'ניהול ותיאום הפרויקט',sub:'תכנון, תיאום היצרן, ההובלה ובעלי המקצוע וליווי עד המסירה',v:fmt(mgmt)});
   rows.push({t:'s',l:'סה״כ לפני מע״מ',v:fmt(net)});
   rows.push({t:'s',l:'מע״מ 18%',v:fmt(vat)});
@@ -5900,20 +5903,22 @@ function bomSvgs(){
   rows.push({t:'s',l:'פעימה ראשונה ('+pi[3]+'%) — חומרים וציוד, במעמד ההזמנה',v:fmt(pi[0])});
   rows.push({t:'s',l:'פעימה שנייה ('+pi[4]+'%) — עבודה והובלה, בסיום הייצור במפעל',v:fmt(pi[1])});
   rows.push({t:'s',l:'פעימה שלישית ('+pi[5]+'%) — ניהול ותיאום הפרויקט, ביום ההצבה לפני הנפת המבנה',v:fmt(pi[2])});
-  const H={sec:10,g:8,i:6.2,d:4.1,p:10,s:6.2,T:13};
+  rows.push({t:'note',l:'הפירוט מוצג לשקיפות. מפרט הביצוע הסופי נקבע מול היצרן (סעיפים 9–10), והמחיר המחייב הוא הסכום הסופי שבהסכם. אין לפנות לספקים או לגורמים המבצעים ללא אישור העסק (סעיף 21).'});
   const pages=[];let B=null,y=0,pn=0;const today=new Date().toLocaleDateString('he-IL');
-  const start=()=>{B=agHeader();pn++;B+=agT(105,46,'מפרט ופירוט עלויות'+(pn>1?' (המשך)':''),5.6,'700',NAVY,'middle');B+=agT(105,52.5,spec+' · '+today,3,'',MUT,'middle');y=62;};
-  const end=last=>{if(last)B+=agT(105,279.5,'הפירוט לשקיפות; מפרט הביצוע נקבע מול היצרן (סעיפים 9–10) והמחיר המחייב הוא הסכום הסופי. אין לפנות לספקים ללא אישור העסק (סעיף 21).',2.5,'',MUT,'middle');B+=agFooter();pages.push(agPage(B));};
+  const start=()=>{B=agHeader();pn++;B+=agT(105,46,'מפרט ופירוט עלויות'+(pn>1?' (המשך)':''),5.8,'700',NAVY,'middle');B+=agT(105,53,spec+' · '+today,3.4,'',MUT,'middle');y=64;};
+  const end=()=>{B+=agFooter();pages.push(agPage(B));};
+  const fit=h=>{if(y+h>276){end();start();}};
   start();
-  rows.forEach((r,i)=>{let need=H[r.t];if(r.t==='sec'||r.t==='g'||r.t==='i')need+=H.d+2;if(y+need>274){end(false);start();}
-    if(r.t==='sec'){y+=2;B+=rc(194.6,y-4.3,1.4,5.6,GOLD)+agT(192,y,r.l,3.8,'700',NAVY);y+=8;}
-    else if(r.t==='g'){B+=rc(14,y-4.7,182,6.9,BG,1.2)+agT(194,y,r.l,3.4,'700',NAVY)+agT(16,y,r.v,3.4,'700',NAVY,'end');y+=8;}
-    else if(r.t==='i'){y+=0.6;B+=agT(194,y,r.l,3.2,'700',NAVY)+agT(16,y,r.v,3.2,'700',NAVY,'end')+ln(y+1.8);y+=5.6;}
-    else if(r.t==='d'){B+=agT(191,y,r.l,2.55,'',MUT)+agT(16,y,r.v,2.55,'',MUT,'end');y+=4.1;}
-    else if(r.t==='p'){y+=1;B+=rc(14,y-4.7,182,9.6,BG,1.2)+agT(194,y,r.l,3.4,'700',NAVY)+agT(16,y,r.v,3.4,'700',NAVY,'end')+agT(194,y+3.7,r.sub,2.4,'',MUT);y+=9;}
-    else if(r.t==='s'){B+=agT(194,y,r.l,3.2,'700',NAVY)+agT(16,y,r.v,3.2,'700',NAVY,'end')+ln(y+1.9);y+=6.2;}
-    else{y+=2;B+=rc(14,y-5.6,182,10.5,NAVY,2)+agT(192,y+0.9,r.l,3.8,'700','#fff')+agT(18,y+1.1,r.v,4.8,'700','#fff','end');y+=11;}});
-  end(true);return pages;
+  rows.forEach((r,i)=>{const nx=rows[i+1];const keep=(nx&&(r.t==='sec'||r.t==='g'||r.t==='i'))?9:0;
+    if(r.t==='sec'){fit(12+keep);y+=2.5;B+=rc(194.6,y-4.8,1.5,6.2,GOLD)+agT(192,y,r.l,F.sec,'700',NAVY);if(i===0){B+=agT(67,y+6,'ספק',3,'700',MUT)+agT(16,y+6,'סכום',3,'700',MUT,'end');y+=5;}y+=9;}
+    else if(r.t==='g'){const L=wrap(r.l,F.g,140);const h=7.6+(L.length-1)*5.2;fit(h+2+keep);B+=rc(14,y-5.4,182,h,BG,1.4);L.forEach((t,k)=>{B+=agT(193.5,y+k*5.2,t,F.g,'700',NAVY);});B+=agT(16.5,y,r.v,F.g,'700',NAVY,'end');y+=h+2.2;}
+    else if(r.t==='i'){const L=wrap(r.l,F.i,145);const h=6.6+(L.length-1)*5;fit(h+keep);y+=0.6;L.forEach((t,k)=>{B+=agT(194,y+k*5,t,F.i,'700',NAVY);});B+=agT(16,y,r.v,F.i,'700',NAVY,'end')+ln(y+(L.length-1)*5+2.1);y+=h;}
+    else if(r.t==='d'){const L=wrap(r.l,F.d,118);const h=5.2*L.length+0.4;fit(h);L.forEach((t,k)=>{B+=agT(190,y+k*5.2,t,F.d,'',MUT);});if(r.sp)B+=agT(67,y,r.sp,F.ds,'','#0b5cad');B+=agT(16,y,r.v,F.d,'',MUT,'end');y+=h;}
+    else if(r.t==='p'){fit(14);y+=1.5;B+=rc(14,y-5.4,182,12,BG,1.4)+agT(193.5,y,r.l,F.s,'700',NAVY)+agT(16.5,y,r.v,F.s,'700',NAVY,'end')+agT(193.5,y+4.6,r.sub,F.ps,'',MUT);y+=11.5;}
+    else if(r.t==='s'){const L=wrap(r.l,F.s,140);const h=7.2+(L.length-1)*5;fit(h);L.forEach((t,k)=>{B+=agT(194,y+k*5,t,F.s,'700',NAVY);});B+=agT(16,y,r.v,F.s,'700',NAVY,'end')+ln(y+(L.length-1)*5+2.3);y+=h;}
+    else if(r.t==='T'){fit(16);y+=2.5;B+=rc(14,y-6.4,182,12,NAVY,2)+agT(192,y+0.9,r.l,F.T,'700','#fff')+agT(18,y+1.2,r.v,F.Tv,'700','#fff','end');y+=13;}
+    else if(r.t==='note'){const L=wrap(r.l,3.1,178);fit(4+L.length*4.6);y+=3;L.forEach(t=>{B+=agT(196,y,t,3.1,'',MUT);y+=4.6;});}});
+  end();return pages;
 }
 
 /* חלוקת פעימות לפי מבנה העלות: 1 = חומרים וציוד, 2 = עבודה והובלה, 3 = רווח העסק (1,000 ₪ למ״ר) — כולל מע״מ. מחזיר [p1,p2,p3,%1,%2,%3] */
@@ -5952,12 +5957,12 @@ function promNoteSvg(){
   B+=agFooter();
   return agPage(B);
 }
-function agreeTermsSvg(part){ part=part||0;
+function agreeTermsSvg(part){ const ALL=part==='all'; part=ALL?1:(part||0); const PAGES=[];
   let B=agHeader();
   B += agT(105,48,'\u05D4\u05E1\u05DB\u05DD \u05E8\u05DB\u05D9\u05E9\u05EA \u05DE\u05D1\u05E0\u05D4 \u05E0\u05D9\u05D9\u05D3 \u2013 \u05D3\u05E8\u05DA \u05D0\u05E8\u05E5 \u05DE\u05D1\u05E0\u05D9\u05DD \u05D9\u05D1\u05D9\u05DC\u05D9\u05DD',4.7,'700','#111','middle');
   /* \u05D3\u05D5\u05D3 \u05D1\u05D9\u05E7\u05E9 \u05DC\u05E6\u05D9\u05D9\u05DF \u05D1\u05E9\u05E4\u05D4 \u05DE\u05E7\u05E6\u05D5\u05E2\u05D9\u05EA \u05E9\u05D4\u05D4\u05E1\u05DB\u05DD \u05DB\u05EA\u05D5\u05D1 \u05D1\u05DC\u05E9\u05D5\u05DF \u05D6\u05DB\u05E8 \u05D5\u05E9\u05D6\u05D4 \u05D7\u05DC \u05D2\u05DD \u05E2\u05DC \u05E0\u05D5\u05E9\u05D0 \u05E0\u05E7\u05D1\u05D4 -- \u05D4\u05E2\u05E8\u05D4 \u05EA\u05E7\u05E0\u05D9\u05EA \u05D5\u05E1\u05D8\u05E0\u05D3\u05E8\u05D8\u05D9\u05EA \u05D1\u05DE\u05E1\u05DE\u05DB\u05D9\u05DD \u05DE\u05E9\u05E4\u05D8\u05D9\u05D9\u05DD \u05D1\u05D9\u05E9\u05E8\u05D0\u05DC. \u05DE\u05E7\u05D5\u05DE\u05D4: \u05DE\u05D9\u05D3 \u05DE\u05EA\u05D7\u05EA \u05DC\u05DB\u05D5\u05EA\u05E8\u05EA, \u05DC\u05E4\u05E0\u05D9 \u05E4\u05EA\u05D9\u05D7 \u05D4\u05D4\u05E6\u05D4\u05E8\u05D4 \u05D4\u05E8\u05E9\u05DE\u05D9\u05EA \u05E9\u05DC \u05D4\u05D4\u05E1\u05DB\u05DD \u05D5\u05DC\u05E4\u05E0\u05D9 \u05E1\u05E2\u05D9\u05E3 1 -- \u05DC\u05D0 \u05D3\u05D5\u05D7\u05E7\u05EA \u05D0\u05EA \u05E9\u05D0\u05E8 \u05D4\u05EA\u05D5\u05DB\u05DF (\u05DB\u05DC \u05E9\u05D0\u05E8 \u05D4-y \u05D4\u05DD \u05E7\u05D1\u05D5\u05E2\u05D9\u05DD \u05DB\u05E8\u05D2\u05D9\u05DC), \u05D5\u05E0\u05D1\u05D3\u05E7 \u05D1-TEST W \u05E9\u05D4\u05E2\u05DE\u05D5\u05D3 \u05E2\u05D3\u05D9\u05D9\u05DF \u05E2\u05D5\u05DE\u05D3 \u05D1\u05EA\u05E7\u05E6\u05D9\u05D1 \u05D4\u05E7\u05D9\u05D9\u05DD. */
   B += agT(105,52.6,'\u05D4\u05D0\u05DE\u05D5\u05E8 \u05D1\u05DE\u05E1\u05DE\u05DA \u05D6\u05D4 \u05D1\u05DC\u05E9\u05D5\u05DF \u05D6\u05DB\u05E8 \u05D4\u05D5\u05D0 \u05DE\u05D8\u05E2\u05DE\u05D9 \u05E0\u05D5\u05D7\u05D5\u05EA \u05D1\u05DC\u05D1\u05D3, \u05D5\u05DE\u05EA\u05D9\u05D9\u05D7\u05E1 \u05DC\u05E0\u05E9\u05D9\u05DD \u05D5\u05DC\u05D2\u05D1\u05E8\u05D9\u05DD \u05DB\u05D0\u05D7\u05D3.',2.7,'','#555','middle');
-  if(!part) B += agT(196,57,'\u05D4\u05E6\u05D4\u05E8\u05EA \u05D4\u05E6\u05D3\u05D3\u05D9\u05DD:',3.9,'700');
+  if(!part||ALL) B += agT(196,57,'\u05D4\u05E6\u05D4\u05E8\u05EA \u05D4\u05E6\u05D3\u05D3\u05D9\u05DD:',3.9,'700');
   const _fpN=parseFloat(state.finalPrice),_fpOk=!isNaN(_fpN)&&_fpN>0,_a3n=_fpOk?Math.round(_fpN/3):0,_lastN=_fpOk?payInst(_fpN)[2]:0,_ils=v=>v?Math.round(v).toLocaleString('he-IL')+' ₪':'______ ₪',_stDay=state.storageDay||storageDayCalc((+state.W||0)*(+state.L||0));
   const P1=[["1. מעמד העסק:",1],
     ["2. דרך ארץ מבנים יבילים (עוסק מורשה 305260986, להלן: \"העסק\") פועלת כגורם מתווך ומתאם בין הלקוח לבין יצרן המבנה, המוביל ובעלי המקצוע המבצעים (להלן יחד: \"הגורמים המבצעים\"). העסק אינו יצרן המבנה, אינו המוביל ואינו מבצע עבודות בשטח. הלקוח מאשר כי מעמד זה הובהר לו לפני ההתקשרות, וכי פרטי הגורמים המבצעים יימסרו לו לפי בקשתו.",0],
@@ -6002,7 +6007,7 @@ function agreeTermsSvg(part){ part=part||0;
     ["30. התחייבות ואישור:",1],
     ["31. חתימה על הסכם זה מהווה אישור והתחייבות מצד הלקוח לכל תנאיו, לרבות הוראות האחריות והתשלום המפורטות לעיל. הסכם זה ונספחיו ממצים את ההתקשרות וגוברים על כל פרסום, הצעת מחיר או מצג קודם.",0],
     ["32. ניתן לאשר הסכם זה גם באישור כתוב ב-WhatsApp/דוא\"ל – ויהיה לו תוקף משפטי מלא.",0]];
-  const rows=(part===1)?P2:P1;
+  const rows=ALL?P1.concat(P2):(part===1)?P2:P1;
   const rowW=(s,f)=>{ let w=0; for(const ch of String(s)) w += (/[ :.,·|()+׳״'"\-]/.test(ch)?0.95 : /[0-9]/.test(ch)?1.85 : 1.98); return w*f/3.7; };
   const wrapRow=(txt,fs,maxW)=>{
     const words=String(txt).split(/\s+/).filter(Boolean);
@@ -6025,8 +6030,11 @@ function agreeTermsSvg(part){ part=part||0;
      \u05E9\u05D4\u05EA\u05E0\u05D2\u05E9\u05D5 \u05E2\u05DD \u05D4\u05DB\u05D5\u05EA\u05E8\u05EA \u05D4\u05EA\u05D7\u05EA\u05D5\u05E0\u05D4 (agFooter, \u05E7\u05D1\u05D5\u05E2\u05D4 \u05D1-y=283) \u2014 \u05D1\u05D3\u05D9\u05D5\u05E7 \u05D4\u05D1\u05D0\u05D2 \u05E9\u05D3\u05D5\u05D3 \u05E9\u05DC\u05D7 \u05E2\u05DC\u05D9\u05D5 \u05E6\u05D9\u05DC\u05D5\u05DD \u05DE\u05E1\u05DA
      \u05E9\u05DC \u05D8\u05E7\u05E1\u05D8 \u05D7\u05D5\u05E4\u05E3/\u05E9\u05D1\u05D5\u05E8 \u05D1\u05EA\u05D7\u05EA\u05D9\u05EA \u05D4\u05E2\u05DE\u05D5\u05D3. \u05D0\u05DD \u05E1\u05E2\u05D9\u05E3 \u05E0\u05D5\u05E1\u05E3/\u05DE\u05D5\u05E1\u05E8 \u05D1\u05E2\u05EA\u05D9\u05D3 \u05D9\u05E9 \u05DC\u05D5\u05D5\u05D3\u05D0 \u05DE\u05D7\u05D3\u05E9 (\u05D1\u05D3\u05E4\u05D3\u05E4\u05DF \u05D7\u05D9) \u05E9-
      bTop+boxH \u05DC\u05D0 \u05DE\u05EA\u05E7\u05E8\u05D1 \u05DC-281 \u2014 \u05D4\u05D0\u05D6\u05D4\u05E8\u05D4 \u05DC\u05DE\u05D8\u05D4 \u05EA\u05D3\u05E4\u05D9\u05E1 \u05DC-console \u05D0\u05DD \u05D6\u05D4 \u05E7\u05D5\u05E8\u05D4, \u05D0\u05D1\u05DC \u05E9\u05D5\u05D5\u05D4 \u05D2\u05DD \u05D1\u05D3\u05D9\u05E7\u05D4 \u05D5\u05D9\u05D6\u05D5\u05D0\u05DC\u05D9\u05EA. */
-  let y=63;
+  let y=ALL?65:63;
+  /* ALL: גוף ~11 נק׳ (4 מ״מ), כותרות ~12 נק׳, ריווח נוח — ומעבר לעמוד נוסף כשצריך, במקום כיווץ */
+  const newPg=()=>{B+=agFooter();PAGES.push(agPage(B));B=agHeader();B+=agT(105,48,'הסכם רכישת מבנה נייד – המשך',4.6,'700','#111','middle');y=60;};
   rows.forEach(([txt,bold,indent])=>{
+    if(ALL){const fs=bold?4.2:3.9,ind=(indent||0)*1.2,LH=5.7;const lines=wrapRow(txt,fs,178-ind);const need=(bold?3+LH*2:0)+lines.length*LH;if(y+need>274)newPg();if(bold)y+=2.6;lines.forEach(ln=>{B+=agT(196-ind,y,ln,fs,bold?'700':'');y+=LH;});y+=bold?0.4:1.3;return;}
     if(bold) y+=1.4;
     const fs=bold?3.4:3.1;
     const lines=wrapRow(txt,fs,178-(indent||0));
@@ -6037,7 +6045,8 @@ function agreeTermsSvg(part){ part=part||0;
   });
   /* \u05E9\u05EA\u05D9 \u05DE\u05E1\u05D2\u05E8\u05D5\u05EA \u05D6\u05D5 \u05DC\u05E6\u05D3 \u05D6\u05D5: \u05D7\u05DC\u05D5\u05E7\u05EA \u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD + \u05E4\u05E8\u05D8\u05D9 \u05D7\u05E9\u05D1\u05D5\u05DF \u05DC\u05D4\u05E2\u05D1\u05E8\u05D4 */
   if(part===1){
-  y+=2.0;
+  if(ALL&&y+33>279)newPg();
+  y+=ALL?4:2.0;
   const bTop=y, boxH=27;
   if(bTop+boxH>281) console.warn('\u05D4\u05E1\u05DB\u05DD: \u05EA\u05D9\u05D1\u05D5\u05EA \u05D4\u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD/\u05D7\u05E9\u05D1\u05D5\u05DF \u05DE\u05EA\u05E0\u05D2\u05E9\u05D5\u05EA \u05D1\u05DB\u05D5\u05EA\u05E8\u05EA \u05D4\u05EA\u05D7\u05EA\u05D5\u05E0\u05D4 \u2014 \u05D4\u05E8\u05E9\u05D9\u05DE\u05D4 \u05D0\u05E8\u05D5\u05DB\u05D4 \u05DE\u05D3\u05D9 \u2014 \u05D9\u05E9 \u05DC\u05DB\u05D5\u05D5\u05E0\u05DF \u05D0\u05EA \u05D4\u05E8\u05D9\u05D5\u05D5\u05D7\u05D9\u05DD \u05DE\u05D7\u05D3\u05E9.');
   const fp2=parseFloat(state.finalPrice);
@@ -6059,6 +6068,7 @@ function agreeTermsSvg(part){ part=part||0;
   B += agT(98,by,'\u05DE\u05E1\u05E4\u05E8 \u05D7\u05E9\u05D1\u05D5\u05DF: 132527',3.35);
   }
   B += agFooter();
+  if(ALL){PAGES.push(agPage(B));return PAGES;}
   return agPage(B);
 }
 
@@ -6601,8 +6611,7 @@ async function exportAgreement(){
     /* \u05E2\u05D5\u05EA\u05E7 "\u05E2\u05D5\u05E1\u05E7 \u05DE\u05D5\u05E8\u05E9\u05D4" \u05E9\u05DC \u05D4\u05E2\u05E1\u05E7 \u2014 \u05E2\u05DE\u05D5\u05D3 \u05E7\u05D1\u05D5\u05E2 \u05D1\u05DB\u05DC \u05D4\u05E1\u05DB\u05DD */
     const cvCert = await imageToCanvas(BIZ_CERT_DATAURL);
     state=custData;
-    const cv2=await svgToCanvas(agreeTermsSvg(0), 1860);
-    const cv2b=await svgToCanvas(agreeTermsSvg(1), 1860);
+    const cvTerms=[];for(const _sv of agreeTermsSvg('all'))cvTerms.push(await svgToCanvas(_sv,1860));
     const cv3=await svgToCanvas(agreeFormSvg(), 1860);
     const cvNote=state.withNote?await svgToCanvas(promNoteSvg(), 1860):null;
     const cvBoms=[];try{for(const _sv of bomSvgs())cvBoms.push(await svgToCanvas(_sv,1860));}catch(e){console.warn('bom page',e);}
@@ -6615,7 +6624,7 @@ async function exportAgreement(){
     const pages=[...cv1Pages];
     if(cv4s.length) pages.push(...cv4s);
     if(cvId) pages.push(cvId);
-    pages.push(cvCert, ...cvBoms, cv2, cv2b, ...(cvNote?[cvNote]:[]), cv3);
+    pages.push(cvCert, ...cvBoms, ...cvTerms, ...(cvNote?[cvNote]:[]), cv3);
     /* דוד ביקש: "תעשה אפשרות שאחרי שהוצאתי הסכם PDF אוכל לערוך אותו שוב" — עד כה meta כאן
        שימש רק לזרימת "העלאה+חתימה" (stampUploaded/loadAgreementPdf, שקוראים רק page/vb/sig),
        ומעולם לא נשא kind או את מצב הסקיצה עצמו — לכן loadPlanFromPdf (שקוראת דווקא ל-meta.kind)
