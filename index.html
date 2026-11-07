@@ -7065,6 +7065,27 @@ render();
     flash('שוחזרה העבודה האחרונה ('+when.toLocaleDateString('he-IL')+' '+when.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})+') — להתחלה נקייה: "מבנה נקי חדש"');
   }catch(e){ try{ localStorage.removeItem(DRAFT_KEY); }catch(_){} }
 })();
+
+/* ייבוא מהצעת המחיר באתר (קישור "יצירת סקיצה מההצעה"): #q=<base64url JSON> — בונה סקיצה לפי המפרט שנבחר
+   וממלא מחיר סופי, פרטי לקוח ופגישת סוכן, כך שההסכם יוצא באותו מחיר בדיוק כמו בהצעה. */
+(function importFromQuote(){
+  const m=(location.hash||'').match(/[#&]q=([^&]+)/);if(!m)return;
+  let q=null;try{q=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));}catch(e){return;}
+  if(!q||!(+q.L>0)||!(+q.W>0))return;
+  const L=+q.L,W=+q.W,t=0.05,p=cleanState(L,W,1);
+  p.planName='סקיצת מבנה '+W+'×'+L+(q.ref?' · הצעה '+q.ref:'');
+  p.addons={gibsIn:!!q.gi,gibsOut:!!q.go,ceramic:!!q.ce,parquet:!q.ce};
+  const nw=(+q.wn||0)+(+q.we||0),top=Math.ceil(nw/2),bot=nw-top;let ei=+q.we||0;p.wins=[];
+  const spread=(wall,cnt,avoidMid)=>{for(let j=0;j<cnt;j++){let off=avoidMid?(j%2?L-1.4:0.4):(L/(cnt+1))*(j+1)-0.5;off=Math.max(0.2,Math.min(L-1.2,Math.round(off*100)/100));p.wins.push({wall:wall,off:off,w:1.0,h:1.0,sill:0.9,shutter:(ei-->0)?'elec':''});}};
+  spread('top',top,false);spread('bottom',bot,true);
+  p.bath.show=!!q.wet;p.kitchen.show=!!q.kit;if(q.kit)p.kitchen.len=+q.km||1.4;
+  p.acs=[];for(let j=0;j<(+q.ac||0);j++)p.acs.push({wall:'top',off:0.5+j*1.5,w:0.9,side:'R',prepOnly:false});
+  p.parts=[];const rooms=+q.rooms||1;for(let j=1;j<rooms;j++){const x=Math.round(L*j/rooms*100)/100;p.parts.push({x:x,doorOff:Math.max(0.02,Math.round(((W-2*t)-0.8)/2*100)/100),doorW:0.8,swing:'R',dir:'v',from:0,to:0,doorType:'swing'});}
+  p.customer=q.nm||'';p.phone=q.ph||'';p.address=q.ad||'';p.quoteNo=q.ref||'';p.meetPay='1500';p.finalPrice=q.price?String(Math.round(+q.price)):'';
+  try{loadPlanObject(p);syncInputs&&syncInputs();rebuildWins();rebuildDoors();rebuildParts();rebuildAcs();updateSummary();render();}catch(e){console.warn('import',e);}
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  try{flash('נטענה סקיצה לפי הצעת המחיר'+(q.price?' · מחיר סופי '+Math.round(+q.price).toLocaleString('he-IL')+' ₪':'')+' — אפשר לסדר את המיקומים ולהפיק הסכם');}catch(e){}
+})();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"608601efa7da412ab33d2fe5378f7cd9","r":1}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"608601efa7da412ab33d2fe5378f7cd9","r":1,"spa":2}' crossorigin="anonymous"></script>
