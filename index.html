@@ -251,6 +251,7 @@
       <div class="frow"><label for="custAddr">&#x5DB;&#x5EA;&#x5D5;&#x5D1;&#x5EA; &#x5D4;&#x5D0;&#x5EA;&#x5E8;</label><input type="text" id="custAddr"></div>
       <div class="frow"><label for="meetPay">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E9;&#x5E9;&#x5D5;&#x5DC;&#x5DD; &#x5DC;&#x5E4;&#x5D2;&#x5D9;&#x5E9;&#x5D4; (&#x20AA;)</label><input type="number" id="meetPay" min="0" step="50" style="width:120px; flex:none"></div>
       <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:150px; flex:none"></div>
+      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote"> לצרף שטר חוב להסכם (רשות — נחתם בעט על עותק מודפס)</label></div>
       <div class="hint">&#x5E4;&#x5E8;&#x5D8;&#x5D9; &#x5D4;&#x5DC;&#x5E7;&#x5D5;&#x5D7; &#x5DC;&#x5D0; &#x5DE;&#x5D5;&#x5D3;&#x5E4;&#x5E1;&#x5D9;&#x5DD; &#x5E2;&#x5DC; &#x5D4;&#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; &#x2014; &#x5D4;&#x5DD; &#x5DE;&#x5DE;&#x5D5;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA; &#x5E8;&#x5E7; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5D4;&#x5D4;&#x5E1;&#x5DB;&#x5DD;; &#x5D4;&#x5EA;&#x5D0;&#x5E8;&#x5D9;&#x5DA; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5E0;&#x5DB;&#x5E0;&#x5E1; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA;.</div>
     </div>
 
@@ -2580,7 +2581,7 @@ function syncInputs(){
   $('custAddr').value=state.address||'';
   $('custId').value=state.custId||'';
   $('meetPay').value=state.meetPay||'';
-  $('finalPrice').value=state.finalPrice||'';
+  $('finalPrice').value=state.finalPrice||''; if($('withNote'))$('withNote').checked=!!state.withNote;
   $('agreeNotes').value=state.agreeNotes||'';
   $('inpL').value=state.L; $('inpW').value=state.W;
   $('inpT').value=Math.round((state.tOut||0.05)*100);
@@ -3161,7 +3162,7 @@ function bindPanel(){
   $('custName').addEventListener('input', e=>{ state.customer=e.target.value; render(); });
   $('custId').addEventListener('input', e=>{ state.custId=e.target.value; });
   $('meetPay').addEventListener('input', e=>{ state.meetPay=e.target.value; });
-  $('finalPrice').addEventListener('input', e=>{ state.finalPrice=e.target.value; });
+  $('finalPrice').addEventListener('input', e=>{ state.finalPrice=e.target.value; }); if($('withNote'))$('withNote').addEventListener('change', e=>{ state.withNote=e.target.checked; });
   $('custPhone').addEventListener('input', e=>{ state.phone=e.target.value; render(); });
   $('custAddr').addEventListener('input', e=>{ state.address=e.target.value; render(); });
   $('inpL').addEventListener('change', e=>{ resizeModuleDim('L', e.target.value); afterChange(); });
@@ -5899,7 +5900,7 @@ function agreeTermsSvg(part){ part=part||0;
     ["26. סכום שלא שולם במועדו יישא ריבית פיגורים והפרשי הצמדה כחוק מיום הפיגור ועד לתשלום בפועל, ובנוסף ישלם הלקוח הוצאות גבייה ושכר טרחת עורך דין בשיעור סביר.",0],
     ["27. כן ישלם הלקוח פיצוי מוסכם ומוערך מראש בשיעור 10% מכל סכום שלא שולם במועדו, בגין עלויות מימון, הובלה חוזרת, אחסון ותפעול, בלי צורך בהוכחת נזק.",0],
     ["• לדוגמה: אי־תשלום הפעימה האחרונה ("+_ils(_lastN)+") — פיצוי מוסכם של "+_ils(_lastN*0.1)+", בנוסף לריבית ולהוצאות.",0,4],
-    ["28. הלקוח מאשר כי הסכומים בהסכם זה הם חוב קצוב, וכי הסכם זה ושטר החוב המצורף בו ישמשו ראיה לחוב ולסכומו.",0],
+    ["28. הלקוח מאשר כי הסכומים בהסכם זה הם חוב קצוב, וכי הסכם זה"+(state.withNote?" ושטר החוב המצורף בו ישמשו":" ישמש")+" ראיה לחוב ולסכומו.",0],
     ["29. העסק רשאי להמחות את זכותו לתשלום, כולה או חלקה, לגורם מבצע או לצד שלישי בהודעה ללקוח, והנמחה יהיה רשאי לגבות את הסכום ישירות מהלקוח.",0],
     ["30. התחייבות ואישור:",1],
     ["31. חתימה על הסכם זה מהווה אישור והתחייבות מצד הלקוח לכל תנאיו, לרבות הוראות האחריות והתשלום המפורטות לעיל. הסכם זה ונספחיו ממצים את ההתקשרות וגוברים על כל פרסום, הצעת מחיר או מצג קודם.",0],
@@ -6482,7 +6483,7 @@ async function exportAgreement(){
     custData.customer=$('custName').value; custData.custId=$('custId').value;
     custData.phone=$('custPhone').value; custData.address=$('custAddr').value;
     custData.agreeNotes=$('agreeNotes').value;
-    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc();
+    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc(); custData.withNote=!!($('withNote')&&$('withNote').checked);
     let cvId=null;
     const idFile=$('custIdPhoto').files && $('custIdPhoto').files[0];
     if(idFile){
@@ -6506,7 +6507,7 @@ async function exportAgreement(){
     const cv2=await svgToCanvas(agreeTermsSvg(0), 1860);
     const cv2b=await svgToCanvas(agreeTermsSvg(1), 1860);
     const cv3=await svgToCanvas(agreeFormSvg(), 1860);
-    const cvNote=await svgToCanvas(promNoteSvg(), 1860);
+    const cvNote=state.withNote?await svgToCanvas(promNoteSvg(), 1860):null;
     /* נספח בחירת מוצרים — עמוד (או יותר) נוסף, רק כשיש בפועל בחירות (הזמנה בלי בחירות מוצרים כלל, כמו כל הזמנה עד היום, לא מקבלת עמוד נוסף) */
     const prodGroups = []; /* בחירת מוצרים מתבצעת מול היצרן לאחר התשלום — לא בהסכם */
     const prodSvgPages = prodGroups.length ? agreeProductsSvg(prodGroups) : [];
@@ -6516,7 +6517,7 @@ async function exportAgreement(){
     const pages=[...cv1Pages];
     if(cv4s.length) pages.push(...cv4s);
     if(cvId) pages.push(cvId);
-    pages.push(cvCert, cv2, cv2b, cvNote, cv3);
+    pages.push(cvCert, cv2, cv2b, ...(cvNote?[cvNote]:[]), cv3);
     /* דוד ביקש: "תעשה אפשרות שאחרי שהוצאתי הסכם PDF אוכל לערוך אותו שוב" — עד כה meta כאן
        שימש רק לזרימת "העלאה+חתימה" (stampUploaded/loadAgreementPdf, שקוראים רק page/vb/sig),
        ומעולם לא נשא kind או את מצב הסקיצה עצמו — לכן loadPlanFromPdf (שקוראת דווקא ל-meta.kind)
