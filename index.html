@@ -5803,12 +5803,14 @@ const agOpt=(bx,y,label,checked)=> agBox(bx,y,checked)+agT(bx-1.6,y,label,3.4);
 
 /* מחיר אוטומטי לפי הסקיצה — אותו מודל עלות כמו מערכת הצעת המחיר באתר (עלות + 1,000 ₪ רווח למ״ר + מע״מ).
    משמש כשלא הוזן "סכום סופי" ידנית; הסכומים בהסכם (פעימות, פיצוי מוסכם, שטר חוב) מחושבים ממנו. */
+/* קיבוץ יחידות לפי מבנה: יחידות עם אותו grp מחוברות (הובלה אחת + הנפה ליחידה נוספת + חיבור); ממ״ד מתומחר בנפרד */
+function _sGroups(){const ms=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules.map(m=>m.data):[state];const G={},ord=[];ms.forEach(d=>{if(!d||d.mamad)return;const k=String(d.grp||0);if(!G[k]){G[k]=[];ord.push(k);}G[k].push(d);});let tr=0,conn=0;const gs=ord.map(k=>{const a=G[k],n=a.length,t0=a.find(d=>+d.trCost>0),t=t0?+t0.trCost:8000+6000*(n-1);tr+=t;conn+=15000*(n-1);return {n,t};});return {tr,conn,gs};}
 function autoPriceCalc(){
   /* מודל עלות לפי מחירי שוק בישראל (נוב׳ 2026) — זהה למערכת הצעת המחיר באתר */
   const mq=(a,v0,v1)=>Math.max(0,v0+(a-18)*(v1-v0)/30), w=1.1;
   const dd=x=>{const P=[[12,8],[18,12],[24,18],[28,24],[30,25],[40,35],[48,45]];if(x<=12)return Math.max(1,Math.ceil(8*x/12));for(let k=1;k<P.length;k++){if(x<=P[k][0])return Math.ceil(P[k-1][1]+(x-P[k-1][0])*(P[k][1]-P[k-1][1])/(P[k][0]-P[k-1][0]));}return Math.ceil(45+(x-48)*1.25);};
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,per=2*(W+L),ad=state.addons||{};
-    if(state.mamad){return {cost:a*5000+25000+((state.acs||[]).length?2700:0),lab:25000,profit:a*1000,mamad:true};}
+    if(state.mamad){const _mt=(+state.trCost>0)?+state.trCost:25000;return {cost:a*5000+_mt+((state.acs||[]).length?2700:0),lab:_mt,profit:a*1000,mamad:true};}
     const B=window.DE_BOM?DE_BOM.mat({am:a,W:W,L:L,finish:'premium',floor:ad.ceramic?'ceramic':'spc'}):null,G=g=>DE_BOM.grpSum(B,g);
     let c=B?G('shell')+3000*Math.max(1,(state.doors||[]).length):(mq(a,4810,8567)+mq(a,1750,4130)+mq(a,500,1500)+2*L*60+mq(a,1400,3200)+1500+400)*w+per*3*70*w+3000*Math.max(1,(state.doors||[]).length);
     if(ad.gibsIn)c+=B?G('gyp'):(Math.ceil((per*3+a)/2.88)*50+mq(a,1760,3300)+mq(a,600,1000)+mq(a,640,960))*w;
@@ -5827,7 +5829,7 @@ function autoPriceCalc(){
   const mods=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules:null;
   let cost=1000,profit=0,lab=0,allMamad=true;const rs=mods?mods.map(m=>withModuleState(m,one)):[one()];
   rs.forEach(r=>{cost+=r.cost;lab+=r.lab||0;profit+=r.profit;if(!r.mamad)allMamad=false;});
-  if(!allMamad){cost+=8000;lab+=8000;} {const _sc=+state.siteCost||0;if(_sc>0){cost+=_sc;lab+=_sc;}} if(rs.length>1){cost+=(rs.length-1)*(15000+6000);lab+=(rs.length-1)*(15000+6000);}
+  {const _T=_sGroups();cost+=_T.tr+_T.conn;lab+=_T.tr+_T.conn;} {const _sc=+state.siteCost||0;if(_sc>0){cost+=_sc;lab+=_sc;}}
   window._sPP={m:cost-lab,w:lab,p:profit};
   return Math.round((cost+profit)*1.18/100)*100;
 }
@@ -5844,7 +5846,7 @@ function sirtutItems(){
   let profit=0,n=0,allMamad=true;
   const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,ad=state.addons||{},pm=2*(W+L);if(a<=0)return 0;n++;profit+=a*1000;
     const tag=mods?' · יחידה '+n:'';
-    if(state.mamad){item('eq','ממ״ד יביל לפי ת״י 4422'+tag,[D('ממ״ד יביל לפי ת״י 4422',a,'מ״ר',5000,'factory'),(state.acs||[]).length?D('מזגן כולל התקנה',1,'יח׳',2700,'ac'):null]);item('log','הובלה ומנוף משקולות לממ״ד'+tag,[D('הובלה ומנוף משקולות',1,'הובלה',25000,'trans')]);return 1;}
+    if(state.mamad){item('eq','ממ״ד יביל לפי ת״י 4422'+tag,[D('ממ״ד יביל לפי ת״י 4422',a,'מ״ר',5000,'factory'),(state.acs||[]).length?D('מזגן כולל התקנה',1,'יח׳',2700,'ac'):null]);item('log','הובלה ומנוף משקולות לממ״ד'+tag,[D('הובלה ומנוף משקולות',1,'הובלה',(+state.trCost>0)?+state.trCost:25000,'trans')]);return 1;}
     allMamad=false;
     const B=DE_BOM.mat({am:a,W:W,L:L,finish:'premium',floor:ad.ceramic?'ceramic':'spc'});
     const grp=k=>{let w=0;const ds=B.filter(x=>x.grp===k).map(x=>{w+=x.sum;return D(x.name,x.q,x.unit,x.p,x.sup,WU[x.unit]?Math.ceil(x.q*1.1):x.q);});if(w>0)ds.push(['פחת וחיתוכים 10%',0,'',0,w*0.1,'']);return ds;};
@@ -5865,9 +5867,9 @@ function sirtutItems(){
     ord.push({name:'ימי עבודה של צוות ייצור (2 עובדים)',q:dd(a),unit:'ימים',p:1400,sup:'factory',sum:dd(a)*1400});item('lab','עבודות ייצור, הרכבה וגמר'+tag,[['צוות הייצור ובעלי המקצוע (חשמל, אינסטלציה ועוד) · הערכת עלות',0,'',0,dd(a)*1400,'']]);return 1;};
   if(mods)mods.forEach(m=>withModuleState(m,one));else one();
   item('mat','הובלת חומרים למפעל',[],1000);
-  if(n>0&&!allMamad)item('log','הובלה ומנוף',[D('הובלה ומנוף מהמפעל לאתר',1,'הובלה',8000,'trans'),n>1?D('הנפת יחידה נוספת',n-1,'יח׳',6000,'trans'):null]);
+  const _T=_sGroups(),_many=_T.gs.length>1;_T.gs.forEach((g,gi)=>{const lb=_many?' · מבנה '+(gi+1):'';item('log','הובלה ומנוף'+lb,[D('הובלה ומנוף מהמפעל לאתר'+(g.n>1?' · '+g.n+' יחידות מחוברות':''),1,'הובלה',g.t,'trans')]);});
   if(+state.siteCost>0){ord.push({name:'חיבור תשתיות והכנת שטח באתר',q:1,unit:'עבודה',p:+state.siteCost,sup:'site',sum:+state.siteCost});item('site','חיבור תשתיות והכנת שטח',[['חיבור מים, ביוב וחשמל והכנת שטח · לפי הערכת עלות',0,'',0,+state.siteCost,'']]);}
-  if(n>1)item('lab','חיבור בין '+n+' יחידות המבנה',[D('חיבור יחידות באתר',n-1,'חיבורים',15000,'factory')]);
+  _T.gs.forEach((g,gi)=>{if(g.n>1)item('lab','חיבור בין '+g.n+' יחידות המבנה'+(_many?' · מבנה '+(gi+1):''),[D('חיבור יחידות באתר',g.n-1,'חיבורים',15000,'factory')]);});
   const groups=Object.values(G).filter(g=>g.it.length).map(g=>({n:g.n,it:g.it,sum:g.it.reduce((s,x)=>s+x.sum,0)}));
   const cost=groups.reduce((s,g)=>s+g.sum,0);
   const m={},orders=[];ord.forEach(x=>{const k=x.sup+'|'+x.name+'|'+x.p;if(m[k]){m[k].q+=x.q;m[k].sum+=x.sum;}else{m[k]=Object.assign({},x);orders.push(m[k]);}});
@@ -5924,7 +5926,7 @@ function bomSvgs(){
 }
 
 /* חלוקת פעימות לפי מבנה העלות: 1 = חומרים וציוד, 2 = עבודה, הובלה ותשתיות, 3 = רווח העסק (1,000 ₪ למ״ר) — כולל מע״מ. מחזיר [p1,p2,p3,%1,%2,%3] */
-function payInst(fp){fp=+fp||0;if(!(fp>0))return [0,0,0,0,0,0];try{autoPriceCalc();}catch(e){}const P=window._sPP,S=P?P.m+P.w+P.p:0;if(!(S>0)){const a=Math.round(fp/3);return [a,a,fp-2*a,33,33,34];}const mp=Math.max(0,parseFloat(state.meetPay)||0);let p1=Math.round(P.m*1.18),p2=Math.round(P.w*1.18),p3=fp-p1-p2-mp;if(p3<0){p3=Math.round((fp-mp)*P.p/S);p2=Math.round((fp-mp)*P.w/S);p1=fp-mp-p2-p3;}const c1=Math.round(p1*100/fp),c2=Math.round(p2*100/fp);return [p1,p2,p3,c1,c2,100-c1-c2];}
+function payInst(fp){fp=+fp||0;if(!(fp>0))return [0,0,0,0,0,0];try{autoPriceCalc();}catch(e){}let P=window._sPP;{const Q=state.qpp;if(Q&&Q.price>0&&Math.abs(fp-Q.price)<1&&(Q.m+Q.w+Q.p)>0)P=Q;}const S=P?P.m+P.w+P.p:0;if(!(S>0)){const a=Math.round(fp/3);return [a,a,fp-2*a,33,33,34];}const mp=Math.max(0,parseFloat(state.meetPay)||0);let p1=Math.round(P.m*1.18),p2=Math.round(P.w*1.18),p3=fp-p1-p2-mp;if(p3<0){p3=Math.round((fp-mp)*P.p/S);p2=Math.round((fp-mp)*P.w/S);p1=fp-mp-p2-p3;}const c1=Math.round(p1*100/fp),c2=Math.round(p2*100/fp);return [p1,p2,p3,c1,c2,100-c1-c2];}
 setInterval(function(){try{const f=document.getElementById('finalPrice');if(f){const v=autoPriceCalc();f.placeholder=v>0?('אוטומטי: '+v.toLocaleString('he-IL')):'';}}catch(e){}},1500);
 /* דמי אחסון יומיים לפי גודל המבנה: מחיר אחסון מקובל ~35 ₪ לקוב לחודש × נפח המבנה (שטח × 3 מ׳ גובה)
    = כ־3.5 ₪ למ״ר ליום, לפני מע״מ; מינימום 60 ₪ ליום. סכום סביר וקשור לעלות אמיתית — כדי שיחזיק משפטית. */
@@ -7073,20 +7075,44 @@ render();
 (function importFromQuote(){
   const m=(location.hash||'').match(/[#&]q=([^&]+)/);if(!m)return;
   let q=null;try{q=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));}catch(e){return;}
-  if(!q||!(+q.L>0)||!(+q.W>0))return;
-  const L=+q.L,W=+q.W,t=0.05,p=cleanState(L,W,1);
-  p.planName='סקיצת מבנה '+W+'×'+L+(q.ref?' · הצעה '+q.ref:'');
-  p.addons={gibsIn:!!q.gi,gibsOut:!!q.go,ceramic:!!q.ce,parquet:!q.ce};
-  const nw=(+q.wn||0)+(+q.we||0),top=Math.ceil(nw/2),bot=nw-top;let ei=+q.we||0;p.wins=[];
-  const spread=(wall,cnt,avoidMid)=>{for(let j=0;j<cnt;j++){let off=avoidMid?(j%2?L-1.4:0.4):(L/(cnt+1))*(j+1)-0.5;off=Math.max(0.2,Math.min(L-1.2,Math.round(off*100)/100));p.wins.push({wall:wall,off:off,w:1.0,h:1.0,sill:0.9,shutter:(ei-->0)?'elec':''});}};
-  spread('top',top,false);spread('bottom',bot,true);
-  p.bath.show=!!q.wet;p.kitchen.show=!!q.kit;if(q.kit)p.kitchen.len=+q.km||1.4;
-  p.acs=[];for(let j=0;j<(+q.ac||0);j++)p.acs.push({wall:'top',off:0.5+j*1.5,w:0.9,side:'R',prepOnly:false});
-  p.parts=[];const rooms=+q.rooms||1;for(let j=1;j<rooms;j++){const x=Math.round(L*j/rooms*100)/100;p.parts.push({x:x,doorOff:Math.max(0.02,Math.round(((W-2*t)-0.8)/2*100)/100),doorW:0.8,swing:'R',dir:'v',from:0,to:0,doorType:'swing'});}
-  p.customer=q.nm||'';p.phone=q.ph||'';p.address=q.ad||'';p.quoteNo=q.ref||'';p.meetPay='1500';p.siteCost=(+q.site>0)?String(Math.round(+q.site)):'';p.finalPrice=q.price?String(Math.round(+q.price)):'';
-  try{loadPlanObject(p);syncInputs&&syncInputs();rebuildWins();rebuildDoors();rebuildParts();rebuildAcs();updateSummary();render();}catch(e){console.warn('import',e);}
+  if(!q)return;
+  /* q.mods = כל היחידות: g = מספר המבנה (יחידות עם אותו g מחוברות), mm = ממ״ד, tr = עלות הובלה מההצעה */
+  const mods=(Array.isArray(q.mods)&&q.mods.length)?q.mods:[q];
+  if(!mods.every(f=>f&&+f.L>0&&+f.W>0))return;
+  const t=0.05,qpp=(q.pp&&(+q.pp.m+ +q.pp.w+ +q.pp.p)>0)?{m:+q.pp.m||0,w:+q.pp.w||0,p:+q.pp.p||0,price:Math.round(+q.price||0)}:null;
+  const nB=new Set(mods.filter(f=>!f.mm).map(f=>+f.g||0)).size,nM=mods.filter(f=>f.mm).length;
+  const mk=f=>{const L=+f.L,W=+f.W,p=cleanState(L,W,1);
+    p.planName=mods.length>1?('סקיצת פרויקט · '+(nB?nB+(nB>1?' מבנים':' מבנה'):'')+(nM?(nB?' + ':'')+(nM>1?nM+' ממ״דים':'ממ״ד'):'')+(q.ref?' · הצעה '+q.ref:'')):('סקיצת מבנה '+W+'×'+L+(q.ref?' · הצעה '+q.ref:''));
+    p.grp=+f.g||0;p.trCost=(+f.tr>0)?Math.round(+f.tr):0;p.qpp=qpp;
+    p.customer=q.nm||'';p.phone=q.ph||'';p.address=q.ad||'';p.quoteNo=q.ref||'';p.meetPay='1500';p.siteCost=(+q.site>0)?String(Math.round(+q.site)):'';p.finalPrice=q.price?String(Math.round(+q.price)):'';
+    p.acs=[];for(let j=0;j<(+f.ac||0);j++)p.acs.push({wall:'top',off:Math.min(L-1,0.5+j*1.5),w:0.9,side:'R',prepOnly:false});
+    if(f.mm){p.mamad=true;p.mamadThick=MAMAD_WALL_T;p.wins=[];p.parts=[];p.bath.show=false;p.kitchen.show=false;p.addons={};return p;}
+    p.addons={gibsIn:!!f.gi,gibsOut:!!f.go,ceramic:!!f.ce,parquet:!f.ce};
+    const nw=(+f.wn||0)+(+f.we||0),top=Math.ceil(nw/2),bot=nw-top;let ei=+f.we||0;p.wins=[];
+    const spread=(wall,cnt,avoidMid)=>{for(let j=0;j<cnt;j++){let off=avoidMid?(j%2?L-1.4:0.4):(L/(cnt+1))*(j+1)-0.5;off=Math.max(0.2,Math.min(L-1.2,Math.round(off*100)/100));p.wins.push({wall:wall,off:off,w:1.0,h:1.0,sill:0.9,shutter:(ei-->0)?'elec':''});}};
+    spread('top',top,false);spread('bottom',bot,true);
+    p.bath.show=!!f.wet;p.kitchen.show=!!f.kit;if(f.kit)p.kitchen.len=+f.km||1.4;
+    p.parts=[];const rooms=+f.rooms||1;for(let j=1;j<rooms;j++){const x=Math.round(L*j/rooms*100)/100;p.parts.push({x:x,doorOff:Math.max(0.02,Math.round(((W-2*t)-0.8)/2*100)/100),doorW:0.8,swing:'R',dir:'v',from:0,to:0,doorType:'swing'});}
+    return p;};
+  const ds=mods.map(mk);
+  try{
+    if(ds.length===1){loadPlanObject(ds[0]);}
+    else{
+      canvas=null;state=ds[0];ensureCanvas();if(ds[0].mamad)canvas.modules[0].name='ממ״ד 1';
+      let mmN=ds[0].mamad?1:0;
+      for(let i=1;i<ds.length;i++){
+        const nm=newModule(ds[i].mamad?('ממ״ד '+(++mmN)):nextModuleName(),ds[i].L,ds[i].W,1,ds[0]);nm.data=ds[i];
+        let bj=-1;for(let j=i-1;j>=0;j--){if((canvas.modules[j].data.grp||0)===(ds[i].grp||0)){bj=j;break;}}
+        canvas.modules.push(nm);
+        if(bj>=0){nm.base=bj;positionRelative(nm,canvas.modules[bj],'side');snapModuleToNeighbors(canvas.modules.length-1);}
+        else{let x1=-1e9;canvas.modules.slice(0,-1).forEach(mm=>{x1=Math.max(x1,moduleBBox(mm).x1);});placeForBBoxOrigin(nm,x1+2,0);nm.dx=Math.round(nm.dx*100)/100;nm.dy=Math.round(nm.dy*100)/100;nm.manual=true;nm.base=null;nm.rel=null;}
+      }
+      canvas.active=0;state=canvas.modules[0].data;undoStack=[];afterChange();
+    }
+    syncInputs&&syncInputs();updateSummary();render();
+  }catch(e){console.warn('import',e);}
   try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
-  try{flash('נטענה סקיצה לפי הצעת המחיר'+(q.price?' · מחיר סופי '+Math.round(+q.price).toLocaleString('he-IL')+' ₪':'')+' — אפשר לסדר את המיקומים ולהפיק הסכם');}catch(e){}
+  try{flash('נטענה סקיצה לפי הצעת המחיר'+(ds.length>1?' · '+(nB?nB+(nB>1?' מבנים':' מבנה'):'')+(nM?' + '+nM+' ממ״ד':'')+' ('+ds.length+' יחידות)':'')+(q.price?' · מחיר סופי '+Math.round(+q.price).toLocaleString('he-IL')+' ₪':'')+' — אפשר לסדר את המיקומים ולהפיק הסכם');}catch(e){}
 })();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"608601efa7da412ab33d2fe5378f7cd9","r":1}' crossorigin="anonymous"></script>
