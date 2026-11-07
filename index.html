@@ -5860,7 +5860,7 @@ function sirtutOrders(){
 }
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='ordersBtn')sirtutOrders();});
 /* חלוקת פעימות לפי מבנה העלות: 1 = חומרים וציוד, 2 = עבודה והובלה, 3 = רווח העסק (1,000 ₪ למ״ר) — כולל מע״מ. מחזיר [p1,p2,p3,%1,%2,%3] */
-function payInst(fp){fp=+fp||0;if(!(fp>0))return [0,0,0,0,0,0];try{autoPriceCalc();}catch(e){}const P=window._sPP,S=P?P.m+P.w+P.p:0;if(!(S>0)){const a=Math.round(fp/3);return [a,a,fp-2*a,33,33,34];}const p3=Math.round(fp*P.p/S),p2=Math.round(fp*P.w/S),p1=fp-p2-p3,c2=Math.round(p2*100/fp),c3=Math.round(p3*100/fp);return [p1,p2,p3,100-c2-c3,c2,c3];}
+function payInst(fp){fp=+fp||0;if(!(fp>0))return [0,0,0,0,0,0];try{autoPriceCalc();}catch(e){}const P=window._sPP,S=P?P.m+P.w+P.p:0;if(!(S>0)){const a=Math.round(fp/3);return [a,a,fp-2*a,33,33,34];}let p1=Math.round(P.m*1.18),p2=Math.round(P.w*1.18),p3=fp-p1-p2;if(p3<0){p3=Math.round(fp*P.p/S);p2=Math.round(fp*P.w/S);p1=fp-p2-p3;}const c2=Math.round(p2*100/fp),c3=Math.round(p3*100/fp);return [p1,p2,p3,100-c2-c3,c2,c3];}
 setInterval(function(){try{const f=document.getElementById('finalPrice');if(f){const v=autoPriceCalc();f.placeholder=v>0?('אוטומטי: '+v.toLocaleString('he-IL')):'';}}catch(e){}},1500);
 /* דמי אחסון יומיים לפי גודל המבנה: מחיר אחסון מקובל ~35 ₪ לקוב לחודש × נפח המבנה (שטח × 3 מ׳ גובה)
    = כ־3.5 ₪ למ״ר ליום, לפני מע״מ; מינימום 60 ₪ ליום. סכום סביר וקשור לעלות אמיתית — כדי שיחזיק משפטית. */
