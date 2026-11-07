@@ -6512,7 +6512,7 @@ async function exportAgreement(){
     const prodGroups = []; /* בחירת מוצרים מתבצעת מול היצרן לאחר התשלום — לא בהסכם */
     const prodSvgPages = prodGroups.length ? agreeProductsSvg(prodGroups) : [];
     const cv4s=[]; for(const pg of prodSvgPages) cv4s.push(await svgToCanvas(pg, 1860));
-    state=savedState;
+    state=savedState; if(!$('finalPrice').value){custData.finalPrice='';} /* מחיר אוטומטי לא נשמר כמחיר ידני — מתעדכן לפי הסקיצה */
     /* בחירת מוצרים (כשיש) יושבת מיד אחרי הדמיית המבנה — לא בסוף ההסכם */
     const pages=[...cv1Pages];
     if(cv4s.length) pages.push(...cv4s);
