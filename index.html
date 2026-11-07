@@ -7098,15 +7098,21 @@ render();
   try{
     if(ds.length===1){loadPlanObject(ds[0]);}
     else{
-      canvas=null;state=ds[0];ensureCanvas();if(ds[0].mamad)canvas.modules[0].name='ממ״ד 1';
-      let mmN=ds[0].mamad?1:0;
-      for(let i=1;i<ds.length;i++){
-        const nm=newModule(ds[i].mamad?('ממ״ד '+(++mmN)):nextModuleName(),ds[i].L,ds[i].W,1,ds[0]);nm.data=ds[i];
-        let bj=-1;for(let j=i-1;j>=0;j--){if((canvas.modules[j].data.grp||0)===(ds[i].grp||0)){bj=j;break;}}
+      /* מבנה אחר מבנה: יחידות של אותו מבנה מחוברות זו לזו; כל מבנה נפרד (או ממ״ד עצמאי) מוצב 2 מ׳ מימין לקודם, בלי חפיפה */
+      const dz=ds.map((d,i)=>i).sort((x,y)=>((ds[x].grp||0)-(ds[y].grp||0))||(x-y)).map(i=>ds[i]);
+      canvas=null;state=dz[0];ensureCanvas();let mmN=0;if(dz[0].mamad)canvas.modules[0].name='ממ״ד '+(++mmN);
+      const maxX1=n=>{let x1=-1e9;canvas.modules.slice(0,n).forEach(mm=>{x1=Math.max(x1,moduleBBox(mm).x1);});return x1;};
+      const shiftGrp=(a,b,tx)=>{if(a<=0)return;const gm=canvas.modules.slice(a,b+1),x0=Math.min(...gm.map(mm=>moduleBBox(mm).x0));if(x0<tx-1e-6){const sft=tx-x0;gm.forEach(mm=>{mm.dx=Math.round((mm.dx+sft)*100)/100;});}};
+      let gS=0,gX=0;
+      for(let i=1;i<dz.length;i++){
+        const nm=newModule(dz[i].mamad?('ממ״ד '+(++mmN)):nextModuleName(),dz[i].L,dz[i].W,1,dz[0]);nm.data=dz[i];
+        const same=(dz[i-1].grp||0)===(dz[i].grp||0);
+        if(!same){shiftGrp(gS,i-1,gX);}
         canvas.modules.push(nm);
-        if(bj>=0){nm.base=bj;positionRelative(nm,canvas.modules[bj],'side');snapModuleToNeighbors(canvas.modules.length-1);}
-        else{let x1=-1e9;canvas.modules.slice(0,-1).forEach(mm=>{x1=Math.max(x1,moduleBBox(mm).x1);});placeForBBoxOrigin(nm,x1+2,0);nm.dx=Math.round(nm.dx*100)/100;nm.dy=Math.round(nm.dy*100)/100;nm.manual=true;nm.base=null;nm.rel=null;}
+        if(same){nm.base=i-1;positionRelative(nm,canvas.modules[i-1],'side');}
+        else{gX=maxX1(i)+2;gS=i;placeForBBoxOrigin(nm,gX,0);nm.dx=Math.round(nm.dx*100)/100;nm.dy=Math.round(nm.dy*100)/100;nm.manual=true;nm.base=null;nm.rel=null;}
       }
+      shiftGrp(gS,dz.length-1,gX);
       canvas.active=0;state=canvas.modules[0].data;undoStack=[];afterChange();
     }
     syncInputs&&syncInputs();updateSummary();render();
