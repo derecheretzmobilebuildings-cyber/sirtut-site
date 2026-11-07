@@ -250,7 +250,7 @@
       <div class="frow"><label for="custPhone">&#x5D8;&#x5DC;&#x5E4;&#x5D5;&#x5DF;</label><input type="text" id="custPhone" inputmode="tel"></div>
       <div class="frow"><label for="custAddr">&#x5DB;&#x5EA;&#x5D5;&#x5D1;&#x5EA; &#x5D4;&#x5D0;&#x5EA;&#x5E8;</label><input type="text" id="custAddr"></div>
       <div class="frow"><label for="meetPay">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E9;&#x5E9;&#x5D5;&#x5DC;&#x5DD; &#x5DC;&#x5E4;&#x5D2;&#x5D9;&#x5E9;&#x5D4; (&#x20AA;)</label><input type="number" id="meetPay" min="0" step="50" style="width:120px; flex:none"></div>
-      <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:120px; flex:none"></div>
+      <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:150px; flex:none"></div>
       <div class="hint">&#x5E4;&#x5E8;&#x5D8;&#x5D9; &#x5D4;&#x5DC;&#x5E7;&#x5D5;&#x5D7; &#x5DC;&#x5D0; &#x5DE;&#x5D5;&#x5D3;&#x5E4;&#x5E1;&#x5D9;&#x5DD; &#x5E2;&#x5DC; &#x5D4;&#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; &#x2014; &#x5D4;&#x5DD; &#x5DE;&#x5DE;&#x5D5;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA; &#x5E8;&#x5E7; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5D4;&#x5D4;&#x5E1;&#x5DB;&#x5DD;; &#x5D4;&#x5EA;&#x5D0;&#x5E8;&#x5D9;&#x5DA; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5E0;&#x5DB;&#x5E0;&#x5E1; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA;.</div>
     </div>
 
@@ -5797,6 +5797,30 @@ const agBox=(bx,y,checked)=>{
 };
 const agOpt=(bx,y,label,checked)=> agBox(bx,y,checked)+agT(bx-1.6,y,label,3.4);
 
+/* מחיר אוטומטי לפי הסקיצה — אותו מודל עלות כמו מערכת הצעת המחיר באתר (עלות + 1,000 ₪ רווח למ״ר + מע״מ).
+   משמש כשלא הוזן "סכום סופי" ידנית; הסכומים בהסכם (פעימות, פיצוי מוסכם, שטר חוב) מחושבים ממנו. */
+function autoPriceCalc(){
+  const one=()=>{const W=+state.W||0,L=+state.L||0,a=W*L,per=2*(W+L),ad=state.addons||{};
+    if(state.mamad){return {cost:a*5000+25000+((state.acs||[]).length?1400:0),profit:a*1000,mamad:true};}
+    let c=a*(2350+800+1200+1500)/18+per*3*3350/54+1600*Math.max(1,(state.doors||[]).length)+1000;
+    if(ad.gibsIn)c+=(per*3+a)*250; if(ad.gibsOut)c+=per*250;
+    c+=ad.ceramic?a*400:a*950/18;
+    (state.wins||[]).forEach(w=>{c+=w.shutter==='elec'?2500:1500;}); c+=(state.cornerWins||[]).length*1500;
+    const wet=state.bath&&state.bath.show,kit=state.kitchen&&state.kitchen.show;
+    if(wet)c+=1100+500+1200+600;
+    if(kit)c+=((+state.kitchen.len||1.4)+(state.kitchen.legOn?(+state.kitchen.legLen||0):0))*1429;
+    if(wet||kit)c+=1200+1500;
+    c+=(state.acs||[]).filter(x=>!x.prepOnly).length*1400;
+    c+=(state.parts||[]).length*1500;
+    c+=Math.max(1,Math.ceil(14+(a-18)*16/30))*1500;
+    return {cost:c,profit:a*1000,mamad:false};};
+  const mods=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules:null;
+  let cost=0,profit=0,allMamad=true;const rs=mods?mods.map(m=>withModuleState(m,one)):[one()];
+  rs.forEach(r=>{cost+=r.cost;profit+=r.profit;if(!r.mamad)allMamad=false;});
+  if(!allMamad)cost+=8000; if(rs.length>1)cost+=(rs.length-1)*(15000+6000);
+  return Math.round((cost+profit)*1.18/100)*100;
+}
+setInterval(function(){try{const f=document.getElementById('finalPrice');if(f){const v=autoPriceCalc();f.placeholder=v>0?('אוטומטי: '+v.toLocaleString('he-IL')):'';}}catch(e){}},1500);
 /* שטר חוב — עמוד בתוך ההסכם (לפני הספח החתום). לביצוע בהוצל"פ נדרש מקור חתום בעט. */
 function promNoteSvg(){
   let B=agHeader();
@@ -6454,7 +6478,7 @@ async function exportAgreement(){
     custData.customer=$('custName').value; custData.custId=$('custId').value;
     custData.phone=$('custPhone').value; custData.address=$('custAddr').value;
     custData.agreeNotes=$('agreeNotes').value;
-    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value;
+    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc());
     let cvId=null;
     const idFile=$('custIdPhoto').files && $('custIdPhoto').files[0];
     if(idFile){
