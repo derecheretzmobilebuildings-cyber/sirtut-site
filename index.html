@@ -5861,7 +5861,7 @@ function sirtutItems(){
     const ap=(state.acs||[]).filter(x=>x.prepOnly).length,af=(state.acs||[]).length-ap;
     if(ap+af>0)item('eq','מיזוג'+(af?' · '+af+' '+(af===1?'מזגן':'מזגנים')+' 1.4 כ״ס':'')+(ap?' · '+ap+' הכנות למזגן':'')+tag,[D('מזגן 1.4 כ״ס כולל התקנה',af,'יח׳',2700,'ac'),D('הכנה למזגן',ap,'יח׳',1000,'ac')]);
     const np=(state.parts||[]).length;if(np)item('eq',np+' מחיצות פנימיות + דלתות פנים'+tag,[D('מחיצה פנימית + דלת פנים',np,'יח׳',1500,'doors')]);
-    item('lab','עבודות ייצור, הרכבה וגמר'+tag,[D('ימי עבודה של צוות (2 עובדים)',dd(a),'ימים',1400,'factory')]);return 1;};
+    ord.push({name:'ימי עבודה של צוות ייצור (2 עובדים)',q:dd(a),unit:'ימים',p:1400,sup:'factory',sum:dd(a)*1400});item('lab','עבודות ייצור, הרכבה וגמר'+tag,[['צוות הייצור ובעלי המקצוע (חשמל, אינסטלציה ועוד) · הערכת עלות',0,'',0,dd(a)*1400,'']]);return 1;};
   if(mods)mods.forEach(m=>withModuleState(m,one));else one();
   item('mat','הובלת חומרים למפעל',[],1000);
   if(n>0&&!allMamad)item('log','הובלה ומנוף',[D('הובלה ומנוף מהמפעל לאתר',1,'הובלה',8000,'trans'),n>1?D('הנפת יחידה נוספת',n-1,'יח׳',6000,'trans'):null]);
