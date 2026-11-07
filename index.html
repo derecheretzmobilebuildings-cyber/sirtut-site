@@ -5872,7 +5872,7 @@ function agreeTermsSvg(part){ part=part||0;
     ["28. הלקוח מאשר כי הסכומים בהסכם זה הם חוב קצוב, וכי הסכם זה ושטר החוב המצורף בו ישמשו ראיה לחוב ולסכומו.",0],
     ["29. העסק רשאי להמחות את זכותו לתשלום, כולה או חלקה, לגורם מבצע או לצד שלישי בהודעה ללקוח, והנמחה יהיה רשאי לגבות את הסכום ישירות מהלקוח.",0],
     ["30. התחייבות ואישור:",1],
-    ["31. חתימה על הסכם זה מהווה אישור והתחייבות מצד הלקוח לכל תנאיו, לרבות חלוקת האחריות המפורטת לעיל.",0],
+    ["31. חתימה על הסכם זה מהווה אישור והתחייבות מצד הלקוח לכל תנאיו, לרבות הוראות האחריות והתשלום המפורטות לעיל. הסכם זה ונספחיו ממצים את ההתקשרות וגוברים על כל פרסום, הצעת מחיר או מצג קודם.",0],
     ["32. ניתן לאשר הסכם זה גם באישור כתוב ב-WhatsApp/דוא\"ל – ויהיה לו תוקף משפטי מלא.",0]];
   const rows=(part===1)?P2:P1;
   const rowW=(s,f)=>{ let w=0; for(const ch of String(s)) w += (/[ :.,·|()+׳״'"\-]/.test(ch)?0.95 : /[0-9]/.test(ch)?1.85 : 1.98); return w*f/3.7; };
@@ -5919,7 +5919,7 @@ function agreeTermsSvg(part){ part=part||0;
   B += `<rect x="106" y="${f3(bTop)}" width="90" height="${f3(boxH)}" rx="1.8" fill="#fafaf9" stroke="#9ca3af" stroke-width="0.35"/>`;
   let ty=bTop+6.2;
   B += agT(192,ty,'\u05D7\u05DC\u05D5\u05E7\u05EA \u05EA\u05E9\u05DC\u05D5\u05DE\u05D9\u05DD (\u05DB\u05D5\u05DC\u05DC \u05DE\u05E2\u05F4\u05DE):',3.7,'700'); ty+=6.2;
-  B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E8\u05D0\u05E9\u05D5\u05E0\u05D4: '+pv(a3),3.35); ty+=6.0;
+  B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u05D1\u05DE\u05E2\u05DE\u05D3 \u05D4\u05D4\u05D6\u05DE\u05E0\u05D4: '+pv(a3),3.35); ty+=6.0;
   B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E9\u05E0\u05D9\u05D4 \u05DC\u05D0\u05D7\u05E8 \u05D1\u05D9\u05E6\u05D5\u05E2 \u05D4\u05E2\u05D1\u05D5\u05D3\u05D4 \u05D1\u05DE\u05E4\u05E2\u05DC: '+pv(a3),3.35); ty+=6.0;
   B += agT(192,ty,'\u05E4\u05E2\u05D9\u05DE\u05D4 \u05E9\u05DC\u05D9\u05E9\u05D9\u05EA \u05DC\u05E4\u05E0\u05D9 \u05D4\u05E0\u05E4\u05EA \u05D4\u05DE\u05D1\u05E0\u05D4: '+pv(a3? fp2-2*a3:0),3.35);
   /* \u05DE\u05E9\u05DE\u05D0\u05DC: \u05E4\u05E8\u05D8\u05D9 \u05D7\u05E9\u05D1\u05D5\u05DF */
@@ -6091,7 +6091,7 @@ function agreeFormSvg(){
   /* \u05EA\u05D0\u05E8\u05D9\u05DA \u2014 \u05E0\u05DB\u05E0\u05E1 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA */
   B += inline(196,fy,'\u05EA\u05D0\u05E8\u05D9\u05DA:',36,new Date().toLocaleDateString('he-IL'));
   fy+=M.dateGap;
-  B += agT(196,fy,'\u05EA\u05D0\u05E8\u05D9\u05DA \u05D9\u05E2\u05D3 \u05DC\u05D0\u05E1\u05E4\u05E7\u05D4: \u05E2\u05D3 60 \u05D9\u05DE\u05D9 \u05E2\u05E1\u05E7\u05D9\u05DD \u05DE\u05DE\u05D5\u05E2\u05D3 \u05D4\u05EA\u05E9\u05DC\u05D5\u05DD',3.7,'700');
+  B += agT(196,fy,'\u05D6\u05DE\u05DF \u05D9\u05D9\u05E6\u05D5\u05E8 \u05DE\u05E9\u05D5\u05E2\u05E8 (\u05D4\u05E2\u05E8\u05DB\u05D4 \u05D1\u05DC\u05D1\u05D3): \u05E2\u05D3 18 \u05DE\u05F4\u05E8 \u05DB\u05E9\u05D1\u05D5\u05E2\u05D9\u05D9\u05DD, \u05D2\u05D3\u05D5\u05DC \u05D9\u05D5\u05EA\u05E8 \u05E2\u05D3 \u05DB\u05BE60 \u05D9\u05D5\u05DD \u2014 \u05DB\u05DE\u05E4\u05D5\u05E8\u05D8 \u05D1\u05E1\u05E2\u05D9\u05E3 12',3.7,'700');
   B += agFooter();
   return agPage(B);
 }
