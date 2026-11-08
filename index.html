@@ -252,7 +252,7 @@
       <div class="frow"><label for="custAddr">&#x5DB;&#x5EA;&#x5D5;&#x5D1;&#x5EA; &#x5D4;&#x5D0;&#x5EA;&#x5E8;</label><input type="text" id="custAddr"></div>
       <div class="frow"><label for="meetPay">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E9;&#x5E9;&#x5D5;&#x5DC;&#x5DD; &#x5DC;&#x5E4;&#x5D2;&#x5D9;&#x5E9;&#x5D4; (&#x20AA;)</label><input type="number" id="meetPay" min="0" step="50" style="width:120px; flex:none"></div>
       <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:150px; flex:none"></div>
-      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote"> לצרף שטר חוב להסכם (רשות — נחתם בעט על עותק מודפס)</label></div>
+      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote" checked disabled> שטר חוב מצורף להסכם תמיד — הסכום ופרטי הלקוח אוטומטיים (להדפיס ולחתום בעט)</label></div>
       <div class="frow"><label for="siteCost">תשתיות והכנת שטח (₪ לפני מע״מ)</label><input type="number" id="siteCost" min="0" step="100" style="width:150px; flex:none" oninput="state.siteCost=this.value"></div>
       <div class="frow"><button type="button" class="flipbtn" id="ordersBtn" style="padding:8px 14px">📦 הזמנות לספקים (פנימי)</button></div>
       <div class="hint">&#x5E4;&#x5E8;&#x5D8;&#x5D9; &#x5D4;&#x5DC;&#x5E7;&#x5D5;&#x5D7; &#x5DC;&#x5D0; &#x5DE;&#x5D5;&#x5D3;&#x5E4;&#x5E1;&#x5D9;&#x5DD; &#x5E2;&#x5DC; &#x5D4;&#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; &#x2014; &#x5D4;&#x5DD; &#x5DE;&#x5DE;&#x5D5;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA; &#x5E8;&#x5E7; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5D4;&#x5D4;&#x5E1;&#x5DB;&#x5DD;; &#x5D4;&#x5EA;&#x5D0;&#x5E8;&#x5D9;&#x5DA; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5E0;&#x5DB;&#x5E0;&#x5E1; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA;.</div>
@@ -2584,7 +2584,7 @@ function syncInputs(){
   $('custAddr').value=state.address||'';
   $('custId').value=state.custId||'';
   $('meetPay').value=state.meetPay||'';
-  $('finalPrice').value=state.finalPrice||''; if($('siteCost'))$('siteCost').value=state.siteCost||''; if($('withNote'))$('withNote').checked=!!state.withNote;
+  $('finalPrice').value=state.finalPrice||''; if($('siteCost'))$('siteCost').value=state.siteCost||''; if($('withNote'))$('withNote').checked=true;
   $('agreeNotes').value=state.agreeNotes||'';
   $('inpL').value=state.L; $('inpW').value=state.W;
   $('inpT').value=Math.round((state.tOut||0.05)*100);
@@ -5936,6 +5936,8 @@ setInterval(function(){try{const f=document.getElementById('finalPrice');if(f){c
 function storageArea(){try{const mods=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules:null;if(mods){let a=0;mods.forEach(m=>{a+=withModuleState(m,()=>(+state.W||0)*(+state.L||0));});return a;}}catch(e){}return (+state.W||0)*(+state.L||0);}
 function storageDayCalc(a){a=(a==null)?storageArea():a;return Math.max(60,Math.round(a*3.5/5)*5);}
 /* שטר חוב — עמוד בתוך ההסכם (לפני הספח החתום). לביצוע בהוצל"פ נדרש מקור חתום בעט. */
+/* סכום במילים (שקלים חדשים) — לשטר החוב */
+function hebNum(n){n=Math.round(+n||0);if(n<=0)return '';const U=['','אחד','שניים','שלושה','ארבעה','חמישה','שישה','שבעה','שמונה','תשעה'],T=['עשרה','אחד עשר','שניים עשר','שלושה עשר','ארבעה עשר','חמישה עשר','שישה עשר','שבעה עשר','שמונה עשר','תשעה עשר'],D=['','','עשרים','שלושים','ארבעים','חמישים','שישים','שבעים','שמונים','תשעים'],H=['','מאה','מאתיים','שלוש מאות','ארבע מאות','חמש מאות','שש מאות','שבע מאות','שמונה מאות','תשע מאות'],K={3:'שלושת אלפים',4:'ארבעת אלפים',5:'חמשת אלפים',6:'ששת אלפים',7:'שבעת אלפים',8:'שמונת אלפים',9:'תשעת אלפים',10:'עשרת אלפים'};const jn=a=>a.length>1?a.slice(0,-1).join(' ')+' ו'+a[a.length-1]:(a[0]||'');const s3=x=>{const a=[];if(x>=100){a.push(H[Math.floor(x/100)]);x%=100;}if(x>=20){a.push(D[Math.floor(x/10)]);x%=10;if(x)a.push(U[x]);}else if(x>=10)a.push(T[x-10]);else if(x)a.push(U[x]);return a;};const e=[];const m=Math.floor(n/1e6),t=Math.floor(n/1000)%1000,r=n%1000;if(m)e.push(m===1?'מיליון':jn(s3(m))+' מיליון');if(t)e.push(t===1?'אלף':t===2?'אלפיים':K[t]||(jn(s3(t))+' אלף'));e.push(...s3(r));return jn(e)+' שקלים חדשים';}
 function promNoteSvg(){
   let B=agHeader();
   const cw=(c)=>(/[ :.,·()׳״'"\/\-—]/.test(c)?0.95:/[0-9]/.test(c)?1.85:1.98);
@@ -5943,15 +5945,15 @@ function promNoteSvg(){
   const wr=(txt,fs,maxW)=>{const out=[];let cur='';String(txt).split(/\s+/).filter(Boolean).forEach(wd=>{const t=cur?cur+' '+wd:wd;if(cur&&ww(t,fs)>maxW){out.push(cur);cur=wd;}else cur=t;});if(cur)out.push(cur);return out;};
   const para=(y,txt,fs,w)=>{wr(txt,fs,176).forEach(l=>{B+=agT(196,y,l,fs,w);y+=fs*1.7;});return y;};
   const field=(y,label,val,x2)=>{const xr=196-ww(label,3.7)*1.02-1.5;let s=agT(196,y,label,3.7,'700')+agLine(x2,y+1.2,xr);if(val&&String(val).trim())s+=agT(xr-2,y,String(val).trim(),3.5);return s;};
-  const fpN=parseFloat(state.finalPrice),ok=!isNaN(fpN)&&fpN>0,amt=ok?Math.round(fpN).toLocaleString('he-IL')+' ₪':'';
+  const fpN=parseFloat(state.finalPrice),ok=!isNaN(fpN)&&fpN>0,_na=ok?Math.ceil(fpN*1.25/100)*100:0,amt=ok?_na.toLocaleString('he-IL')+' ₪':'';/* מחיר העסקה + פיצוי מוסכם 10% + שכ״ט 15% (סעיפים 26–27) */
   const d=new Date(),ds=d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
   B+=agT(105,46,'שטר חוב',6.2,'700','#111','middle');
   let y=62;
   B+=field(y,'מקום ותאריך הוצאה:',ds,110); y+=10;
   B+=field(y,'סכום השטר:',amt,110); y+=10;
-  B+=field(y,'הסכום במילים:','',18); y+=13;
+  B+=field(y,'הסכום במילים:',ok?hebNum(_na):'',18); y+=13;
   y=para(y,'אני/אנו הח״מ מתחייב/ים לשלם לפקודת דרך ארץ מבנים יבילים, עוסק מורשה 305260986, את הסכום הנקוב לעיל, לפי דרישה. השטר פטור מהצגה לתשלום, מפרוטסט, מהודעת חילול ומהודעת אי־כיבוד.',3.7); y+=3;
-  y=para(y,'שטר זה ניתן כבטוחה לקיום התחייבויות עושה השטר לפי הסכם רכישת מבנה יביל שנחתם בין הצדדים, והמחזיק בו רשאי להציגו לביצוע עד גובה הסכום שלא שולם במועדו.',3.4); y+=9;
+  y=para(y,'שטר זה ניתן כבטוחה לקיום התחייבויות עושה השטר לפי הסכם רכישת מבנה יביל שנחתם בין הצדדים, והמחזיק בו רשאי להציגו לביצוע עד גובה הסכום שלא שולם במועדו, בתוספת הפיצוי המוסכם, ההוצאות ושכר הטרחה לפי ההסכם.',3.4); y+=9;
   B+=agT(196,y,'עושה השטר:',4.1,'700'); y+=9;
   B+=field(y,'שם מלא:',state.customer,18); y+=10;
   B+=field(y,'מספר ת.ז/ח.פ:',state.custId,18); y+=10;
@@ -6603,7 +6605,7 @@ async function exportAgreement(){
     custData.customer=$('custName').value; custData.custId=$('custId').value;
     custData.phone=$('custPhone').value; custData.address=$('custAddr').value;
     custData.agreeNotes=$('agreeNotes').value;
-    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc(); custData.withNote=!!($('withNote')&&$('withNote').checked);
+    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc(); custData.withNote=true;
     let cvId=null;
     const idFile=$('custIdPhoto').files && $('custIdPhoto').files[0];
     if(idFile){
