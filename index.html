@@ -252,7 +252,7 @@
       <div class="frow"><label for="custAddr">&#x5DB;&#x5EA;&#x5D5;&#x5D1;&#x5EA; &#x5D4;&#x5D0;&#x5EA;&#x5E8;</label><input type="text" id="custAddr"></div>
       <div class="frow"><label for="meetPay">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E9;&#x5E9;&#x5D5;&#x5DC;&#x5DD; &#x5DC;&#x5E4;&#x5D2;&#x5D9;&#x5E9;&#x5D4; (&#x20AA;)</label><input type="number" id="meetPay" min="0" step="50" style="width:120px; flex:none"></div>
       <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:150px; flex:none"></div>
-      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote" checked disabled> שטר חוב מצורף להסכם תמיד — הסכום ופרטי הלקוח אוטומטיים (להדפיס ולחתום בעט)</label></div>
+      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote" disabled> שטר החוב נחתם במעמד המסירה — מצורף לפרוטוקול המסירה (סכום ופרטים אוטומטיים)</label></div>
       <div class="frow"><label for="siteCost">תשתיות והכנת שטח (₪ לפני מע״מ)</label><input type="number" id="siteCost" min="0" step="100" style="width:150px; flex:none" oninput="state.siteCost=this.value"></div>
       <div class="frow"><button type="button" class="flipbtn" id="ordersBtn" style="padding:8px 14px">📦 הזמנות לספקים (פנימי)</button></div>
       <div class="hint">&#x5E4;&#x5E8;&#x5D8;&#x5D9; &#x5D4;&#x5DC;&#x5E7;&#x5D5;&#x5D7; &#x5DC;&#x5D0; &#x5DE;&#x5D5;&#x5D3;&#x5E4;&#x5E1;&#x5D9;&#x5DD; &#x5E2;&#x5DC; &#x5D4;&#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; &#x2014; &#x5D4;&#x5DD; &#x5DE;&#x5DE;&#x5D5;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA; &#x5E8;&#x5E7; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5D4;&#x5D4;&#x5E1;&#x5DB;&#x5DD;; &#x5D4;&#x5EA;&#x5D0;&#x5E8;&#x5D9;&#x5DA; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5E0;&#x5DB;&#x5E0;&#x5E1; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA;.</div>
@@ -2584,7 +2584,7 @@ function syncInputs(){
   $('custAddr').value=state.address||'';
   $('custId').value=state.custId||'';
   $('meetPay').value=state.meetPay||'';
-  $('finalPrice').value=state.finalPrice||''; if($('siteCost'))$('siteCost').value=state.siteCost||''; if($('withNote'))$('withNote').checked=true;
+  $('finalPrice').value=state.finalPrice||''; if($('siteCost'))$('siteCost').value=state.siteCost||''; if($('withNote'))$('withNote').checked=false;
   $('agreeNotes').value=state.agreeNotes||'';
   $('inpL').value=state.L; $('inpW').value=state.W;
   $('inpT').value=Math.round((state.tOut||0.05)*100);
@@ -6003,7 +6003,7 @@ function agreeTermsSvg(part){ const ALL=part==='all'; part=ALL?1:(part||0); cons
     ["17. מסירה והעברת סיכון:",1],
     ["18. עם סיום הייצור יוזמן הלקוח לבדוק את המבנה במפעל, או יקבל תמונות וסרטונים לבדיקה מרחוק, ורשאי לבקש תיעוד נוסף. הלקוח יאשר את המבנה בחתימה על \"פרוטוקול אישור מבנה ומסירה\" (נספח להסכם זה, בקישור בעמוד החתימה), בכתב יד, בחתימה דיגיטלית או באישור כתוב ב-WhatsApp/דוא״ל. בחתימה זו מושלמת מסירת המבנה, ומאותו מועד עוברים ללקוח הסיכון והאחריות למבנה, לרבות לשמירתו, להובלתו, להנפתו ולהצבתו.",0],
     ["• לא הגיע הלקוח לבדיקה ולא מסר הסתייגות מפורטת בכתב בתוך 5 ימי עסקים מהודעת סיום הייצור (שאליה צורפו תמונות וסרטונים) — יראו את המבנה כמאושר וכנמסר.",0,4],
-    ["• הלקוח יחתום בעט על שטר החוב המצורף להסכם זה במעמד חתימת ההסכם, ואם לא חתם עליו — לפני יציאת המבנה מהמפעל, יחד עם פרוטוקול אישור המבנה והמסירה. העסק רשאי לעכב את יציאת המבנה עד לחתימה על השטר ועל הפרוטוקול, ועיכוב כזה לא ייחשב הפרה מצדו; עלויות האחסון והעיכוב בתקופה זו יחולו על הלקוח.",0,4],
+    ["• עם השלמת הפעימה השנייה ולפני יציאת המבנה מהמפעל, ייפגשו הצדדים — במשרדי העסק או במקום אחר שיתואם — והלקוח יחתום בעט על פרוטוקול אישור המבנה והמסירה ועל שטר החוב המצורף אליו, בסכום הפעימה האחרונה בתוספת הפיצוי המוסכם ושכר הטרחה, כבטוחה לתשלומה. העסק רשאי לעכב את יציאת המבנה עד לחתימה על הפרוטוקול ועל השטר, ועיכוב כזה לא ייחשב הפרה מצדו; עלויות האחסון והעיכוב בתקופה זו יחולו על הלקוח.",0,4],
     ["19. ליקוי או אי־התאמה גלויים יש לרשום בפרוטוקול לפני החתימה עליו, ולאחר החתימה לא תישמע בעניינם טענה כלפי העסק (בהתאם לחובת הבדיקה וההודעה שבסעיפים 13–14 לחוק המכר, התשכ״ח–1968). בחתימה על הפרוטוקול מאשר הלקוח כי בדק את המבנה באופן מלא, וכי הוא מקבל אותו קבלה מלאה וסופית כפי שהוא, ומוותר ויתור סופי, מלא ובלתי חוזר על כל טענה, דרישה או תביעה כלפי העסק בקשר למבנה, למצבו, לטיבו או להתאמתו להסכם. טענה שתועלה לאחר מכן אינה עילה לעיכוב, להפחתה או לקיזוז תשלום לעסק. נזק שנגרם בהובלה, בהנפה, בהצבה או בעבודות באתר יופנה לגורם המבצע האחראי ולמבטחו.",0],
     ["20. פנייה לגורמים המבצעים:",1],
     ["21. לבקשת הלקוח, ימסור העסק את פרטי הקשר של הגורמים המבצעים כפי שהם ידועים לעסק במועד הבקשה. כל פנייה בעניין ליקוי, תיקון או אחריות תופנה אליהם ישירות. העסק אינו אחראי לזמינותם, לעדכניות פרטיהם, לשינוי פרטי הקשר שלהם או לאופן הטיפול שלהם בפנייה.",0],
@@ -6606,7 +6606,7 @@ async function exportAgreement(){
     custData.customer=$('custName').value; custData.custId=$('custId').value;
     custData.phone=$('custPhone').value; custData.address=$('custAddr').value;
     custData.agreeNotes=$('agreeNotes').value;
-    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc(); custData.withNote=true;
+    custData.meetPay=$('meetPay').value; custData.finalPrice=$('finalPrice').value||String(autoPriceCalc()); custData.storageDay=storageDayCalc(); custData.withNote=false;
     let cvId=null;
     const idFile=$('custIdPhoto').files && $('custIdPhoto').files[0];
     if(idFile){
