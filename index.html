@@ -252,7 +252,7 @@
       <div class="frow"><label for="custAddr">&#x5DB;&#x5EA;&#x5D5;&#x5D1;&#x5EA; &#x5D4;&#x5D0;&#x5EA;&#x5E8;</label><input type="text" id="custAddr"></div>
       <div class="frow"><label for="meetPay">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E9;&#x5E9;&#x5D5;&#x5DC;&#x5DD; &#x5DC;&#x5E4;&#x5D2;&#x5D9;&#x5E9;&#x5D4; (&#x20AA;)</label><input type="number" id="meetPay" min="0" step="50" style="width:120px; flex:none"></div>
       <div class="frow"><label for="finalPrice">&#x5E1;&#x5DB;&#x5D5;&#x5DD; &#x5E1;&#x5D5;&#x5E4;&#x5D9; (&#x20AA;)</label><input type="number" id="finalPrice" min="0" step="100" style="width:150px; flex:none"></div>
-      <div class="frow"><label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="withNote" disabled> שטר החוב נחתם במעמד המסירה — מצורף לפרוטוקול המסירה (סכום ופרטים אוטומטיים)</label></div>
+      <div class="frow"><button type="button" class="btn" id="btnQuotePdf" style="width:100%;padding:10px 12px;font-weight:700">📄 טעינת הצעת מחיר (PDF) — מילוי אוטומטי של הסקיצה</button><input type="file" id="quotePdfIn" accept="application/pdf,.pdf" style="display:none"><input type="checkbox" id="withNote" style="display:none"></div>
       <div class="frow"><label for="siteCost">תשתיות והכנת שטח (₪ לפני מע״מ)</label><input type="number" id="siteCost" min="0" step="100" style="width:150px; flex:none" oninput="state.siteCost=this.value"></div>
       <div class="frow"><button type="button" class="flipbtn" id="ordersBtn" style="padding:8px 14px">📦 הזמנות לספקים (פנימי)</button></div>
       <div class="hint">&#x5E4;&#x5E8;&#x5D8;&#x5D9; &#x5D4;&#x5DC;&#x5E7;&#x5D5;&#x5D7; &#x5DC;&#x5D0; &#x5DE;&#x5D5;&#x5D3;&#x5E4;&#x5E1;&#x5D9;&#x5DD; &#x5E2;&#x5DC; &#x5D4;&#x5E1;&#x5E7;&#x5D9;&#x5E6;&#x5D4; &#x2014; &#x5D4;&#x5DD; &#x5DE;&#x5DE;&#x5D5;&#x5DC;&#x5D0;&#x5D9;&#x5DD; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA; &#x5E8;&#x5E7; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5D4;&#x5D4;&#x5E1;&#x5DB;&#x5DD;; &#x5D4;&#x5EA;&#x5D0;&#x5E8;&#x5D9;&#x5DA; &#x5D1;&#x5E1;&#x5E4;&#x5D7; &#x5E0;&#x5DB;&#x5E0;&#x5E1; &#x5D0;&#x5D5;&#x5D8;&#x5D5;&#x5DE;&#x5D8;&#x5D9;&#x5EA;.</div>
@@ -7083,9 +7083,24 @@ render();
 
 /* ייבוא מהצעת המחיר באתר (קישור "יצירת סקיצה מההצעה"): #q=<base64url JSON> — בונה סקיצה לפי המפרט שנבחר
    וממלא מחיר סופי, פרטי לקוח ופגישת סוכן, כך שההסכם יוצא באותו מחיר בדיוק כמו בהצעה. */
-(function importFromQuote(){
-  const m=(location.hash||'').match(/[#&]q=([^&]+)/);if(!m)return;
-  let q=null;try{q=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));}catch(e){return;}
+/* טעינת הצעת מחיר מקובץ PDF: בהצעה שהופקה מהמערכת מוטמע קישור מוצפן (#k=) עם כל נתוני המפרט והמחיר */
+function _skDec(s){s=String(s).replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s),k='DE-sirtut-2026';let o='';for(let i=0;i<b.length;i++)o+=String.fromCharCode(b.charCodeAt(i)^k.charCodeAt(i%k.length));return o;}
+async function importQuotePdf(file){try{
+  const buf=new Uint8Array(await file.arrayBuffer());let txt='';for(let i=0;i<buf.length;i+=65536)txt+=String.fromCharCode.apply(null,buf.subarray(i,i+65536));
+  let m=txt.match(/#k=([A-Za-z0-9_\-]{20,})/);
+  if(!m){try{if(!window.pdfjsLib){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s);});pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;for(let p=1;p<=pdf.numPages&&!m;p++){const an=await (await pdf.getPage(p)).getAnnotations();for(const a of an){const mm=String(a.url||a.unsafeUrl||'').match(/#k=([A-Za-z0-9_\-]{20,})/);if(mm){m=mm;break;}}}}catch(e){console.warn('pdfjs',e);}}
+  if(!m){alert('לא נמצאו בקובץ נתוני הצעת מחיר. יש להעלות PDF של הצעת מחיר שהופקה מהמערכת.');return;}
+  const p=_skDec(m[1]);const q=JSON.parse(decodeURIComponent(escape(atob(p.replace(/-/g,'+').replace(/_/g,'/')))));
+  if(!confirm('לטעון את הצעת המחיר לסקיצה? הסקיצה הנוכחית תוחלף.'))return;
+  window.__importQuote(q);
+}catch(e){console.warn('quote pdf',e);alert('לא ניתן לקרוא את קובץ ההצעה.');}}
+document.addEventListener('click',e=>{const b=e.target&&e.target.closest&&e.target.closest('#btnQuotePdf');if(b){const i=document.getElementById('quotePdfIn');i.value='';i.click();}});
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='quotePdfIn'&&e.target.files&&e.target.files[0])importQuotePdf(e.target.files[0]);});
+
+(function importFromQuote(qIn){
+  window.__importQuote=importFromQuote;let q=qIn||null;if(!q){const m=(location.hash||'').match(/[#&]q=([^&]+)/);if(!m)return;
+  try{q=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));}catch(e){return;}}
   if(!q)return;
   /* q.mods = כל היחידות: g = מספר המבנה (יחידות עם אותו g מחוברות), mm = ממ״ד, tr = עלות הובלה מההצעה */
   const mods=(Array.isArray(q.mods)&&q.mods.length)?q.mods:[q];
