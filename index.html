@@ -232,7 +232,7 @@
   .rowFlash{animation:rowFlash 1.8s ease-out}
   @keyframes rowFlash{0%,35%{box-shadow:0 0 0 3px #f59e0b; background:#fff7e6}100%{box-shadow:0 0 0 0 transparent}}
 </style>
-<script src="https://derech-eretz.net/bom.js?v=20261107e"></script>
+<script src="https://derech-eretz.net/bom.js?v=20261109p"></script>
 </head>
 <body>
 <header class="app">
@@ -5827,7 +5827,7 @@ function autoPriceCalc(){
     (state.acs||[]).forEach(x=>{c+=x.prepOnly?1000:2700;});
     c+=(state.parts||[]).length*1500;
     c+=B?G('elec'):(1500+mq(a,800,1500)+mq(a,220,330)+Math.ceil(a/3)*20+Math.ceil(a/6)*150+50)*w;
-    const lab=dd(a)*1400;
+    const lab=((window.DE_BOM&&DE_BOM.days)?DE_BOM.days(a,!!ad.gibsIn,per):dd(a))*1400;
     return {cost:c+lab,lab:lab,profit:a*1000,mamad:false};};
   const mods=(typeof canvas!=='undefined'&&canvas&&canvas.modules&&canvas.modules.length>=2)?canvas.modules:null;
   let cost=1000,profit=0,lab=0,allMamad=true;const rs=mods?mods.map(m=>withModuleState(m,one)):[one()];
@@ -5867,7 +5867,7 @@ function sirtutItems(){
     const ap=(state.acs||[]).filter(x=>x.prepOnly).length,af=(state.acs||[]).length-ap;
     if(ap+af>0)item('eq','מיזוג'+(af?' · '+af+' '+(af===1?'מזגן':'מזגנים')+' 1.4 כ״ס':'')+(ap?' · '+ap+' הכנות למזגן':'')+tag,[D('מזגן 1.4 כ״ס כולל התקנה',af,'יח׳',2700,'ac'),D('הכנה למזגן',ap,'יח׳',1000,'ac')]);
     const np=(state.parts||[]).length;if(np)item('eq',np+' מחיצות פנימיות + דלתות פנים'+tag,[D('מחיצה פנימית + דלת פנים',np,'יח׳',1500,'doors')]);
-    ord.push({name:'ימי עבודה של צוות ייצור (2 עובדים)',q:dd(a),unit:'ימים',p:1400,sup:'factory',sum:dd(a)*1400});item('lab','עבודות ייצור, הרכבה וגמר'+tag,[['צוות הייצור ובעלי המקצוע (חשמל, אינסטלציה ועוד) · הערכת עלות',0,'',0,dd(a)*1400,'']]);return 1;};
+    const _wd=(window.DE_BOM&&DE_BOM.days)?DE_BOM.days(a,!!ad.gibsIn,pm):dd(a);ord.push({name:'ימי עבודה של צוות ייצור (2 עובדים)',q:_wd,unit:'ימים',p:1400,sup:'factory',sum:_wd*1400});item('lab','עבודות ייצור, הרכבה וגמר · '+_wd+' ימי עבודה'+tag,[['ימי עבודה — צוות ייצור של 2 עובדים ובעלי המקצוע (חשמל, אינסטלציה ועוד)',_wd,'ימים',1400,_wd*1400,'']]);return 1;};
   if(mods)mods.forEach(m=>withModuleState(m,one));else one();
   item('mat','הובלת חומרים למפעל',[],1000);
   const _T=_sGroups(),_many=_T.gs.length>1;_T.gs.forEach((g,gi)=>{const lb=_many?' · מבנה '+(gi+1):'';item('log',(g.h?'הובלה ומנוף משקולות':'הובלה ומנוף')+lb,[D((g.h?'הובלה ומנוף משקולות':'הובלה ומנוף')+' מהמפעל לאתר'+(g.n>1?' · '+g.n+' יחידות מחוברות':''),1,'הובלה',g.t,'trans')]);});
